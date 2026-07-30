@@ -17,13 +17,14 @@ ffmpeg -hide_banner -loglevel error -f lavfi -i 'testsrc=size=640x360:rate=30' -
 $jobId = [Guid]::NewGuid()
 $jobRoot = Join-Path $jobsRoot $jobId.ToString('N')
 New-Item $jobRoot -ItemType Directory -Force | Out-Null
+$now = [DateTimeOffset]::UtcNow.ToString('O')
 $job = @{
   jobId = $jobId
   type = 'export'
   status = 'Waiting'
   progressPercent = 0
-  createdAt = [DateTimeOffset]::UtcNow
-  updatedAt = [DateTimeOffset]::UtcNow
+  createdAt = $now
+  updatedAt = $now
   export = @{
     jobId = $jobId
     inputPath = $media
