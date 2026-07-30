@@ -22,7 +22,7 @@ public partial class App : Application
     {
         try
         {
-            await JobWorker.RunAsync(runOnce);
+            await SafeJobWorker.RunAsync(runOnce);
             Shutdown(0);
         }
         catch (Exception ex)
