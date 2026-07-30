@@ -297,9 +297,10 @@ public partial class MainWindow : Window
 
         if (_project is not null && _projectDirectory is not null)
         {
-            var media = _project.SourceFiles.FirstOrDefault(item => item.Id == clip.MediaId);
+            var selectedClip = clip;
+            var media = _project.SourceFiles.FirstOrDefault(item => item.Id == selectedClip.MediaId);
             if (media is not null && PreviewPlayer.Source?.LocalPath != Path.Combine(_projectDirectory, media.ProjectPath))
-                LoadPreview(media, clip.SourceIn);
+                LoadPreview(media, selectedClip.SourceIn);
         }
         return true;
     }
