@@ -5,4 +5,9 @@
   <ItemGroup>
     <ProjectReference Include="..\AutoCutStudio.Core\AutoCutStudio.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+  </ItemGroup>
 </Project>

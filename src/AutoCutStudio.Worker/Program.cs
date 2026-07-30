@@ -86,6 +86,8 @@ internal static class WorkerProgram
             {
                 JobTypes.SocialClipExport => new FfmpegSocialProcessor(tools),
                 JobTypes.EnhancedExport => new FfmpegEnhancedProcessor(tools),
+                AdvancedJobTypes.PrivacyBlurExport => new FfmpegPrivacyBlurProcessor(tools),
+                AdvancedJobTypes.TemplateVideoExport => new FfmpegTemplateVideoProcessor(tools),
                 _ => new FfmpegTimelineProcessor(tools)
             };
             var processingReport = await processor.ProcessAsync(job, EmitAsync, UpdateProgressAsync);
@@ -241,6 +243,7 @@ internal static class WorkerProgram
     private static int RunDoctor()
     {
         var availability = new ToolLocator().Locate();
+        var vision = new ComputerVisionToolLocator().Locate();
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             status = availability.Status,
@@ -248,6 +251,9 @@ internal static class WorkerProgram
             ffmpeg_path = availability.FfmpegPath,
             ffprobe_path = availability.FfprobePath,
             message = availability.Message,
+            face_model_ready = vision.FaceModelPath is not null,
+            object_model_ready = vision.ObjectModelPath is not null,
+            vision_message = vision.Message,
             base_directory = AppContext.BaseDirectory
         }, JsonDefaults.Options));
         return availability.IsReady ? 0 : 69;

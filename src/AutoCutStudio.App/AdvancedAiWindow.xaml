@@ -1,0 +1,148 @@
+<Window x:Class="AutoCutStudio.App.AdvancedAiWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Advanced Local AI — Objects, Privacy, B-roll &amp; Document Video"
+        Width="1180" Height="820" MinWidth="980" MinHeight="700"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="Advanced Local AI" FontSize="24" FontWeight="Bold"/>
+                <TextBlock Text="ใช้โมเดล Local และ Workflow ที่ตรวจสอบได้ ไม่มีการอัปโหลด Source Media"
+                           Foreground="{StaticResource MutedTextBrush}"/>
+            </StackPanel>
+            <TextBlock x:Name="VisionStatusText" Text="กำลังตรวจโมเดล..." TextAlignment="Right" TextWrapping="Wrap"/>
+        </DockPanel>
+
+        <TabControl Grid.Row="1" x:Name="AdvancedTabs">
+            <TabItem Header="Objects &amp; B-roll">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="2*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock x:Name="ObjectStatusText" DockPanel.Dock="Left" Text="ยังไม่ได้วิเคราะห์ Object" VerticalAlignment="Center"/>
+                        <Button DockPanel.Dock="Right" x:Name="AnalyzeObjectsButton" Content="วิเคราะห์ Object และเสนอ B-roll" Click="AnalyzeObjects_Click"/>
+                    </DockPanel>
+                    <GroupBox Grid.Row="1" Header="Object Detection จาก Frame ที่สุ่มจริง" Margin="0,0,0,8">
+                        <DataGrid x:Name="ObjectsGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="เวลา" Binding="{Binding TimeSeconds, StringFormat=0.0}" Width="80"/>
+                                <DataGridTextColumn Header="Object" Binding="{Binding Label}" Width="140"/>
+                                <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence, StringFormat=P0}" Width="110"/>
+                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat=P1}" Width="80"/>
+                                <DataGridTextColumn Header="Y" Binding="{Binding Y, StringFormat=P1}" Width="80"/>
+                                <DataGridTextColumn Header="Width" Binding="{Binding Width, StringFormat=P1}" Width="80"/>
+                                <DataGridTextColumn Header="Height" Binding="{Binding Height, StringFormat=P1}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                    <GroupBox Grid.Row="2" Header="B-roll Suggestion — มี Local Match จะระบุ Path ให้">
+                        <DataGrid x:Name="BrollGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="55"/>
+                                <DataGridTextColumn Header="เวลา" Binding="{Binding StartSeconds, StringFormat=0.0}" Width="75"/>
+                                <DataGridTextColumn Header="Keyword" Binding="{Binding Keyword}" Width="120"/>
+                                <DataGridTextColumn Header="ภาพที่แนะนำ" Binding="{Binding SuggestedShot}" Width="2*"/>
+                                <DataGridTextColumn Header="Local Asset" Binding="{Binding MatchedLocalAsset}" Width="2*"/>
+                                <DataGridTextColumn Header="เหตุผล" Binding="{Binding ReasonSummary}" Width="2*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Face Privacy Blur">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock x:Name="FaceStatusText" DockPanel.Dock="Left" Text="ยังไม่ได้วิเคราะห์ใบหน้า" VerticalAlignment="Center"/>
+                        <Button DockPanel.Dock="Right" x:Name="AnalyzeFacesButton" Content="ตรวจและติดตามใบหน้า" Click="AnalyzeFaces_Click"/>
+                    </DockPanel>
+                    <DataGrid x:Name="FaceTracksGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Blur" Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Width="65"/>
+                            <DataGridTextColumn Header="Track" Binding="{Binding DisplayIndex}" Width="70" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="เริ่ม" Binding="{Binding StartSeconds, StringFormat=0.0}" Width="80" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="จบ" Binding="{Binding EndSeconds, StringFormat=0.0}" Width="80" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Keyframes" Binding="{Binding Keyframes.Count}" Width="90" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Confidence" Binding="{Binding AverageConfidence, StringFormat=P0}" Width="110" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DockPanel Grid.Row="2" Margin="0,10,0,0">
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                            <TextBlock Text="Blur" VerticalAlignment="Center"/>
+                            <Slider x:Name="BlurStrengthSlider" Minimum="5" Maximum="40" Value="20" Width="160" Margin="8,0"/>
+                            <TextBlock Text="Padding" VerticalAlignment="Center"/>
+                            <Slider x:Name="FacePaddingSlider" Minimum="0" Maximum="0.5" Value="0.18" Width="160" Margin="8,0"/>
+                        </StackPanel>
+                        <Button DockPanel.Dock="Right" x:Name="CreatePrivacyJobButton" Content="สร้าง Privacy Blur Job" IsEnabled="False" Click="CreatePrivacyJob_Click" Background="#9F1239"/>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Document / Text to Video">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="เอกสาร TXT / Markdown / DOCX / PDF" FontWeight="SemiBold"/>
+                            <TextBox x:Name="DocumentPathTextBox" IsReadOnly="True" Text="ยังไม่ได้เลือกเอกสาร"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Theme" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="ThemeComboBox" SelectedIndex="0" Margin="4" Padding="7">
+                                <ComboBoxItem Content="Documentary Dark" Tag="documentary_dark"/>
+                                <ComboBoxItem Content="Light Clean" Tag="light_clean"/>
+                                <ComboBoxItem Content="Forest Green" Tag="forest_green"/>
+                                <ComboBoxItem Content="Ocean Blue" Tag="ocean_blue"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <Button Grid.Column="2" Content="เลือกและอ่านเอกสาร" Click="BrowseDocument_Click" VerticalAlignment="Bottom"/>
+                    </Grid>
+                    <DataGrid x:Name="DocumentSectionsGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="55" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="หัวข้อ — แก้ได้" Binding="{Binding Heading, UpdateSourceTrigger=PropertyChanged}" Width="1.2*"/>
+                            <DataGridTextColumn Header="เนื้อหา — แก้ได้" Binding="{Binding Body, UpdateSourceTrigger=PropertyChanged}" Width="3*"/>
+                            <DataGridTextColumn Header="เวลา (s)" Binding="{Binding SuggestedDurationSeconds, UpdateSourceTrigger=PropertyChanged}" Width="90"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DockPanel Grid.Row="2" Margin="0,10,0,0">
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                            <CheckBox x:Name="VoiceoverCheckBox" Content="สร้าง Windows Voiceover ภายในเครื่อง" Margin="8"/>
+                            <TextBlock Text="ไม่ใช่ Voice Clone และไม่ส่งเสียงไป Cloud" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}"/>
+                        </StackPanel>
+                        <Button DockPanel.Dock="Right" x:Name="CreateDocumentVideoButton" Content="สร้าง Document Video Job" IsEnabled="False" Click="CreateDocumentVideo_Click" Background="#075985"/>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <DockPanel Grid.Row="2" Margin="0,10,0,0">
+            <TextBlock DockPanel.Dock="Left" x:Name="AdvancedStatusText" Text="พร้อม" VerticalAlignment="Center"/>
+            <Button DockPanel.Dock="Right" Content="ปิด" Click="Close_Click"/>
+        </DockPanel>
+    </Grid>
+</Window>
