@@ -1,0 +1,66 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install FFmpeg
+        shell: powershell
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Restore
+        run: dotnet restore AutoCutStudio.sln
+
+      - name: Build
+        run: dotnet build AutoCutStudio.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=tests.trx"
+
+      - name: End-to-end smoke test
+        shell: powershell
+        run: ./scripts/smoke-test.ps1
+
+      - name: Publish portable EXE
+        shell: powershell
+        run: |
+          $out = "artifacts/portable"
+          dotnet publish src/AutoCutStudio/AutoCutStudio.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $out
+          Copy-Item README.md "$out/README.md"
+          Copy-Item docs/FEATURE_MATRIX.md "$out/FEATURE_MATRIX.md"
+          New-Item "$out/tools" -ItemType Directory -Force | Out-Null
+          Set-Content "$out/tools/PUT_FFMPEG_HERE.txt" "Place ffmpeg.exe and ffprobe.exe here, or add FFmpeg to PATH."
+          Compress-Archive -Path "$out/*" -DestinationPath "artifacts/AutoCutStudio-win-x64.zip" -Force
+          Get-FileHash "artifacts/AutoCutStudio-win-x64.zip" -Algorithm SHA256 | Format-List | Out-File "artifacts/SHA256.txt"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: warn
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-win-x64
+          path: |
+            artifacts/AutoCutStudio-win-x64.zip
+            artifacts/SHA256.txt
+          if-no-files-found: error
