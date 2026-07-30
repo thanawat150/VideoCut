@@ -21,6 +21,7 @@ $BundledFfmpegTools = Join-Path $Package "tools\ffmpeg"
 $BundledWhisperTools = Join-Path $Package "tools\whisper"
 $BundledWhisperModels = Join-Path $Package "models\whisper"
 $BundledVisionModels = Join-Path $Package "models\opencv"
+$BundledPlugins = Join-Path $Package "plugins"
 
 function Resolve-ExistingFile {
     param([string[]]$Candidates, [long]$MinimumSize = 1)
@@ -157,7 +158,7 @@ function Write-VisionNotice {
 Remove-Item $Artifacts -Recurse -Force -ErrorAction SilentlyContinue
 foreach ($directory in @(
     $Package, $BundledFfmpegTools, $BundledWhisperTools,
-    $BundledWhisperModels, $BundledVisionModels, (Join-Path $Package "docs")
+    $BundledWhisperModels, $BundledVisionModels, $BundledPlugins, (Join-Path $Package "docs")
 )) { New-Item $directory -ItemType Directory -Force | Out-Null }
 
 dotnet publish (Join-Path $Root "src\AutoCutStudio.App\AutoCutStudio.App.csproj") `
@@ -178,6 +179,10 @@ Copy-Item (Join-Path $Root "README.md") $Package
 foreach ($doc in @("PHASE1_ARCHITECTURE.md", "IMPLEMENTATION_STATUS.md", "FEATURE_MATRIX.md")) {
     $source = Join-Path $Root "docs\$doc"
     if (Test-Path $source -PathType Leaf) { Copy-Item $source (Join-Path $Package "docs") }
+}
+$pluginRoot = Join-Path $Root "plugins"
+if (Test-Path $pluginRoot -PathType Container) {
+    Copy-Item (Join-Path $pluginRoot "*") $BundledPlugins -Recurse -Force
 }
 
 $resolvedFfmpeg = Resolve-FfmpegDirectory
@@ -234,3 +239,4 @@ if ($resolvedWhisperDirectory) { Write-Host "Bundled Whisper from: $resolvedWhis
 if ($resolvedWhisperModel) { Write-Host "Bundled Whisper model from: $resolvedWhisperModel" }
 if ($resolvedFace) { Write-Host "Bundled YuNet model from: $resolvedFace" }
 if ($resolvedObject) { Write-Host "Bundled YOLOX model from: $resolvedObject" }
+Write-Host "Bundled declarative plugins: $BundledPlugins"
