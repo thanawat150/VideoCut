@@ -38,24 +38,27 @@ function Get-ValidFfmpegDirectory {
     param([string]$Candidate)
     if ([string]::IsNullOrWhiteSpace($Candidate)) { return $null }
     try { $fullPath = [System.IO.Path]::GetFullPath($Candidate) } catch { return $null }
-    if ((Test-Path (Join-Path $fullPath "ffmpeg.exe") -PathType Leaf) -and
-        (Test-Path (Join-Path $fullPath "ffprobe.exe") -PathType Leaf)) { return $fullPath }
-    return $null
+    $ffmpeg = Join-Path $fullPath "ffmpeg.exe"
+    $ffprobe = Join-Path $fullPath "ffprobe.exe"
+    if (-not (Test-Path $ffmpeg -PathType Leaf) -or -not (Test-Path $ffprobe -PathType Leaf)) { return $null }
+    if ((Get-Item $ffmpeg).Length -lt 1MB -or (Get-Item $ffprobe).Length -lt 1MB) { return $null }
+    return $fullPath
 }
 
 function Resolve-FfmpegDirectory {
     $candidates = [System.Collections.Generic.List[string]]::new()
     if ($FfmpegDirectory) { $candidates.Add($FfmpegDirectory) }
     if ($env:AUTOCUT_BUNDLE_FFMPEG_DIR) { $candidates.Add($env:AUTOCUT_BUNDLE_FFMPEG_DIR) }
-    $command = Get-Command ffmpeg.exe -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -ne $command -and $command.Source) { $candidates.Add((Split-Path $command.Source -Parent)) }
     foreach ($root in @($env:ChocolateyInstall, "C:\ProgramData\chocolatey") | Where-Object { $_ }) {
         $lib = Join-Path $root "lib"
         if (Test-Path $lib -PathType Container) {
             Get-ChildItem $lib -Filter ffmpeg.exe -File -Recurse -ErrorAction SilentlyContinue |
+                Sort-Object Length -Descending |
                 ForEach-Object { $candidates.Add($_.DirectoryName) }
         }
     }
+    $command = Get-Command ffmpeg.exe -CommandType Application -ErrorAction SilentlyContinue
+    if ($null -ne $command -and $command.Source) { $candidates.Add((Split-Path $command.Source -Parent)) }
     foreach ($candidate in $candidates | Select-Object -Unique) {
         $resolved = Get-ValidFfmpegDirectory $candidate
         if ($null -ne $resolved) { return $resolved }
@@ -182,7 +185,7 @@ foreach ($doc in @("PHASE1_ARCHITECTURE.md", "IMPLEMENTATION_STATUS.md", "FEATUR
 
 $resolvedFfmpeg = Resolve-FfmpegDirectory
 if ($null -eq $resolvedFfmpeg) {
-    if (-not $AllowMissingFfmpeg) { throw "Unable to locate ffmpeg.exe and ffprobe.exe." }
+    if (-not $AllowMissingFfmpeg) { throw "Unable to locate real ffmpeg.exe and ffprobe.exe binaries." }
     "FFmpeg missing." | Set-Content (Join-Path $BundledFfmpegTools "MISSING_DEPENDENCY.txt")
 } else {
     Copy-Item (Join-Path $resolvedFfmpeg "ffmpeg.exe") $BundledFfmpegTools
