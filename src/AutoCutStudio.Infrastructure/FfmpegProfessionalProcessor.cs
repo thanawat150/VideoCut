@@ -361,7 +361,7 @@ public sealed class FfmpegProfessionalProcessor : IVideoProcessor
     }
 
     private static int ClampWidth(int value) => Math.Clamp(value, 320, 3840) / 2 * 2;
-    private static int ClampHeight(int value) => Math.Clamp(value, 240, 3840) / 2 * 2;
+    private static int ClampHeight(int value) => Math.Clamp(value, 180, 3840) / 2 * 2;
     private static int ClampFps(int value) => Math.Clamp(value, 15, 60);
     private static string F(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
     private static string BuildSafeDisplay(IEnumerable<string> arguments) =>
