@@ -5,4 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AutoCutStudio.Core\AutoCutStudio.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.13.0.20260627" />
+  </ItemGroup>
 </Project>
