@@ -9,8 +9,29 @@ public static class AdvancedJobTypes
 public sealed record ComputerVisionToolAvailability(
     bool IsReady,
     string? FaceModelPath,
+    string? ObjectModelPath,
     string Status,
     string Message);
+
+public sealed record ObjectDetection
+{
+    public double TimeSeconds { get; init; }
+    public int ClassId { get; init; }
+    public string Label { get; init; } = string.Empty;
+    public double Confidence { get; init; }
+    public double X { get; init; }
+    public double Y { get; init; }
+    public double Width { get; init; }
+    public double Height { get; init; }
+}
+
+public sealed record ObjectAnalysisResult
+{
+    public string SourcePath { get; init; } = string.Empty;
+    public double SampleIntervalSeconds { get; init; }
+    public List<ObjectDetection> Detections { get; init; } = [];
+    public DateTimeOffset CompletedAt { get; init; } = DateTimeOffset.UtcNow;
+}
 
 public sealed record DetectedFace
 {
@@ -56,7 +77,7 @@ public sealed record FaceTrackingResult
 public sealed record PrivacyBlurPlan
 {
     public Guid PlanId { get; init; } = Guid.NewGuid();
-    public List<Guid> SelectedTrackIds { get; init; } = [];
+    public List<FaceTrack> SelectedTracks { get; init; } = [];
     public int BlurStrength { get; init; } = 18;
     public double BoxPaddingRatio { get; init; } = 0.18;
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
@@ -71,6 +92,7 @@ public sealed record BrollSuggestion
     public double EndSeconds { get; init; }
     public string? MatchedLocalAsset { get; init; }
     public List<string> Reasons { get; init; } = [];
+    public string ReasonSummary => string.Join("; ", Reasons);
 }
 
 public sealed record DocumentSection
@@ -93,4 +115,20 @@ public sealed record TemplateVideoRecipe
     public bool GenerateWindowsVoiceover { get; init; }
     public string VoiceLanguage { get; init; } = "auto";
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+}
+
+public sealed record PrivacyBlurRecipe
+{
+    public List<FaceTrack> Tracks { get; init; } = [];
+    public int BlurStrength { get; init; } = 18;
+    public double PaddingRatio { get; init; } = 0.18;
+    public double SampleIntervalSeconds { get; init; } = 0.5;
+}
+
+public sealed record TemplateVideoJobRecipe
+{
+    public TemplateVideoRecipe Recipe { get; init; } = new();
+    public string ScriptPath { get; init; } = string.Empty;
+    public string? VoiceoverPath { get; init; }
+    public string AssPath { get; init; } = string.Empty;
 }
