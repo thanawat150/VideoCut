@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AutoCutStudio.Core.Models;
 using AutoCutStudio.Core.Services;
 
@@ -28,8 +29,8 @@ public sealed class PluginCatalogService
                     var info = new FileInfo(path);
                     if (info.Length is <= 0 or > 128 * 1024)
                         throw new InvalidDataException("Plugin manifest มีขนาดไม่ถูกต้อง");
-                    await using var stream = File.OpenRead(path);
-                    var manifest = await JsonSerializer.DeserializeAsync<PluginManifest>(stream, JsonDefaults.Options, cancellationToken)
+                    var json = await File.ReadAllTextAsync(path, cancellationToken);
+                    var manifest = DeserializeCompatibleManifest(json)
                                    ?? throw new InvalidDataException("Plugin manifest ว่าง");
                     var validation = Validate(manifest);
                     if (!seen.Add(manifest.Id))
@@ -57,6 +58,26 @@ public sealed class PluginCatalogService
         return results.OrderByDescending(item => item.IsValid).ThenBy(item => item.Name).ToList();
     }
 
+    internal static PluginManifest? DeserializeCompatibleManifest(string json)
+    {
+        var node = JsonNode.Parse(json) as JsonObject
+                   ?? throw new InvalidDataException("Plugin manifest ต้องเป็น JSON Object");
+        CopyAlias(node, "exportPreset", "export_preset");
+        if (node["export_preset"] is JsonObject preset)
+        {
+            CopyAlias(preset, "frameRate", "frame_rate");
+            CopyAlias(preset, "videoBitrateKbps", "video_bitrate_kbps");
+            CopyAlias(preset, "audioBitrateKbps", "audio_bitrate_kbps");
+        }
+        return node.Deserialize<PluginManifest>(JsonDefaults.Options);
+    }
+
+    private static void CopyAlias(JsonObject node, string alias, string canonical)
+    {
+        if (node[canonical] is null && node[alias] is not null)
+            node[canonical] = node[alias]!.DeepClone();
+    }
+
     private static (bool Valid, string Message) Validate(PluginManifest manifest)
     {
         if (string.IsNullOrWhiteSpace(manifest.Id) ||
@@ -70,7 +91,7 @@ public sealed class PluginCatalogService
         if (manifest.ExportPreset is null)
             return (false, "Plugin ไม่มี Export Preset");
         var preset = manifest.ExportPreset;
-        if (preset.Width is < 320 or > 3840 || preset.Height is < 240 or > 3840 ||
+        if (preset.Width is < 320 or > 3840 || preset.Height is < 180 or > 3840 ||
             preset.FrameRate is < 15 or > 60 || preset.VideoBitrateKbps is < 500 or > 100000 ||
             preset.AudioBitrateKbps is < 64 or > 512)
             return (false, "ค่า Export Preset อยู่นอกขอบเขตที่ปลอดภัย");
