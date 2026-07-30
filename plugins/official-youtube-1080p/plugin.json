@@ -1,0 +1,14 @@
+{
+  "id": "official.youtube.1080p",
+  "name": "Official YouTube 1080p",
+  "version": "1.0.0",
+  "type": "export_preset",
+  "description": "Built-in declarative 1920x1080 export preset. This manifest does not execute external code.",
+  "exportPreset": {
+    "width": 1920,
+    "height": 1080,
+    "frameRate": 30,
+    "videoBitrateKbps": 10000,
+    "audioBitrateKbps": 192
+  }
+}
