@@ -21,6 +21,7 @@ public partial class App : Application
                 if (Current.MainWindow is AutoCutStudio.App.MainWindow window)
                 {
                     window.EnableAutomaticEditingUi();
+                    window.EnableSpeechEditingUi();
                 }
             }));
     }
