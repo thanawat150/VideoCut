@@ -36,7 +36,7 @@ public sealed class OpenCvObjectDetector
         CancellationToken cancellationToken = default)
     {
         var availability = _visionTools.Locate();
-        if (!availability.IsReady || string.IsNullOrWhiteSpace(availability.ObjectModelPath))
+        if (string.IsNullOrWhiteSpace(availability.ObjectModelPath))
             throw new InvalidOperationException(availability.Message);
         var working = Path.Combine(Path.GetTempPath(), "AutoCut-Objects", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(working);
@@ -46,6 +46,8 @@ public sealed class OpenCvObjectDetector
             var frames = await new FfmpegFrameSampler(_mediaTools).ExtractAsync(
                 inputPath, working, sampleIntervalSeconds, maximumFrames, cancellationToken);
             using var net = CvDnn.ReadNetFromOnnx(availability.ObjectModelPath);
+            net.SetPreferableBackend(Backend.OPENCV);
+            net.SetPreferableTarget(Target.CPU);
             var detections = new List<ObjectDetection>();
             foreach (var frame in frames)
             {
@@ -87,28 +89,32 @@ public sealed class OpenCvObjectDetector
             return [];
 
         var dimensions = Enumerable.Range(0, output.Dims).Select(output.Size).ToArray();
-        var channelsFirst = dimensions.Length >= 3 && dimensions[^2] == 84;
-        var rows = channelsFirst ? 84 : dimensions[^2];
+        var channelsFirst = dimensions.Length >= 3 && dimensions[^2] is 84 or 85;
+        var rows = channelsFirst ? dimensions[^2] : dimensions[^2];
         using var matrix = output.Reshape(1, rows);
         var candidateCount = channelsFirst ? matrix.Cols : matrix.Rows;
         var featureCount = channelsFirst ? matrix.Rows : matrix.Cols;
-        if (featureCount < 5) return [];
+        if (featureCount < 84) return [];
 
+        var hasObjectness = featureCount >= 85;
+        var classOffset = hasObjectness ? 5 : 4;
         var candidates = new List<Candidate>();
         for (var index = 0; index < candidateCount; index++)
         {
             float Value(int feature) => channelsFirst
                 ? matrix.At<float>(feature, index)
                 : matrix.At<float>(index, feature);
+
+            var objectness = hasObjectness ? Math.Clamp(Value(4), 0, 1) : 1f;
             var bestClass = -1;
             var bestScore = 0f;
-            for (var classIndex = 4; classIndex < featureCount; classIndex++)
+            for (var classIndex = classOffset; classIndex < featureCount; classIndex++)
             {
-                var score = Value(classIndex);
+                var score = Math.Clamp(Value(classIndex), 0, 1) * objectness;
                 if (score > bestScore)
                 {
                     bestScore = score;
-                    bestClass = classIndex - 4;
+                    bestClass = classIndex - classOffset;
                 }
             }
             if (bestScore < confidenceThreshold || bestClass < 0 || bestClass >= CocoLabels.Length)
