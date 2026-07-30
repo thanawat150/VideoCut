@@ -11,6 +11,20 @@ public partial class App : Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
     }
 
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(() =>
+            {
+                if (Current.MainWindow is AutoCutStudio.App.MainWindow window)
+                {
+                    window.EnableAutomaticEditingUi();
+                }
+            }));
+    }
+
     private static void OnDispatcherUnhandledException(
         object sender,
         DispatcherUnhandledExceptionEventArgs eventArgs)
