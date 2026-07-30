@@ -85,10 +85,12 @@ public sealed class FfmpegBeatDetector
             novelty[index] = Math.Max(0, energy[index] - energy[index - 1]);
         var mean = novelty.Average();
         var std = Math.Sqrt(novelty.Select(value => Math.Pow(value - mean, 2)).Average());
-        var threshold = mean + std * 1.15;
+        // A lower adaptive multiplier preserves regular click tracks where roughly half of the
+        // windows are quiet and the positive onsets are intentionally uniform.
+        var threshold = mean + std * 0.45;
         var minimumGapWindows = 5; // 250 ms
         var peaks = new List<int>();
-        for (var index = 2; index < novelty.Length - 2; index++)
+        for (var index = 1; index < novelty.Length - 1; index++)
         {
             if (novelty[index] < threshold || novelty[index] < novelty[index - 1] || novelty[index] < novelty[index + 1])
                 continue;
