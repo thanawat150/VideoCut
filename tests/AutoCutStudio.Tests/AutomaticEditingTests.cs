@@ -19,11 +19,11 @@ public sealed class AutomaticEditingTests
     }
 
     [Fact]
-    public void UnsupportedSpeechFeatureIsReportedHonestly()
+    public void UnsupportedAdvancedFeatureIsReportedHonestly()
     {
         var parser = new AutomaticCommandParser();
 
-        var request = parser.Parse("ลบคำพูดผิดและใส่ซับให้ด้วย");
+        var request = parser.Parse("ตรวจคำพูดผิดอัตโนมัติและหาช่วงสำคัญที่สุด");
 
         Assert.False(request.IsSupported);
         Assert.Contains("ยังไม่รองรับ", request.Message);
