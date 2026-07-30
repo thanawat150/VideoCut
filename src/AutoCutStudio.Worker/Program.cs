@@ -10,9 +10,7 @@ internal static class WorkerProgram
     public static async Task<int> RunAsync(string[] args)
     {
         if (args.Any(argument => string.Equals(argument, "--doctor", StringComparison.OrdinalIgnoreCase)))
-        {
             return RunDoctor();
-        }
 
         var jobPath = ParseJobPath(args);
         if (jobPath is null)
@@ -23,10 +21,7 @@ internal static class WorkerProgram
 
         var jobs = new JobRepository();
         JobDocument job;
-        try
-        {
-            job = await jobs.ReadJobAsync(jobPath);
-        }
+        try { job = await jobs.ReadJobAsync(jobPath); }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"Unable to read job: {exception.Message}");
@@ -38,20 +33,13 @@ internal static class WorkerProgram
             await jobs.AppendEventAsync(job, agentEvent);
             Console.WriteLine("EVENT:" + JsonSerializer.Serialize(agentEvent, JsonDefaults.CompactOptions));
         }
-
-        async Task UpdateProgressAsync(JobProgress progress)
-        {
-            await jobs.WriteProgressAsync(job, progress);
-        }
+        async Task UpdateProgressAsync(JobProgress progress) => await jobs.WriteProgressAsync(job, progress);
 
         try
         {
             var tools = new ToolLocator();
             var availability = tools.Locate();
-            if (!availability.IsReady)
-            {
-                throw new InvalidOperationException(availability.Message);
-            }
+            if (!availability.IsReady) throw new InvalidOperationException(availability.Message);
 
             job = job with
             {
@@ -73,7 +61,6 @@ internal static class WorkerProgram
                 InputPath = job.InputPath,
                 OutputPath = job.OutputPath
             });
-
             await jobs.AppendRunLogAsync(job, $"Worker PID: {Environment.ProcessId}");
             await jobs.AppendRunLogAsync(job, $"Job Type: {job.JobType}");
             await jobs.AppendRunLogAsync(job, $"Input: {job.InputPath}");
@@ -98,6 +85,7 @@ internal static class WorkerProgram
             AutoCutStudio.Core.Interfaces.IVideoProcessor processor = job.JobType switch
             {
                 JobTypes.SocialClipExport => new FfmpegSocialProcessor(tools),
+                JobTypes.EnhancedExport => new FfmpegEnhancedProcessor(tools),
                 _ => new FfmpegTimelineProcessor(tools)
             };
             var processingReport = await processor.ProcessAsync(job, EmitAsync, UpdateProgressAsync);
@@ -105,9 +93,7 @@ internal static class WorkerProgram
             await WriteJsonAsync(Path.Combine(jobDirectory, "processing_report.json"), processingReport);
             await jobs.AppendRunLogAsync(job, processingReport.SafeCommandDisplay);
             if (processingReport.SourceWasModified)
-            {
                 throw new InvalidDataException("Source file metadata changed during processing.");
-            }
 
             await EmitAsync(new AgentEvent
             {
@@ -122,17 +108,12 @@ internal static class WorkerProgram
                 InputPath = job.InputPath,
                 OutputPath = job.OutputPath
             });
-
             var probe = new FfprobeMediaProbe(tools);
             var qualityControl = new OutputQualityControl(probe);
             var (qaReport, manifest) = await qualityControl.ValidateAsync(job);
             await WriteJsonAsync(Path.Combine(jobDirectory, "qa_report.json"), qaReport);
             if (!qaReport.Passed || manifest is null)
-            {
-                throw new InvalidDataException(
-                    qaReport.Errors.Count == 0 ? "Output QA failed." : string.Join("; ", qaReport.Errors));
-            }
-
+                throw new InvalidDataException(qaReport.Errors.Count == 0 ? "Output QA failed." : string.Join("; ", qaReport.Errors));
             await WriteJsonAsync(Path.Combine(jobDirectory, "manifest.json"), manifest);
             await EmitAsync(new AgentEvent
             {
@@ -190,12 +171,7 @@ internal static class WorkerProgram
         }
         catch (JobCancelledException exception)
         {
-            job = job with
-            {
-                Status = JobStatuses.Cancelled,
-                WorkerProcessId = null,
-                FailureMessage = exception.Message
-            };
+            job = job with { Status = JobStatuses.Cancelled, WorkerProcessId = null, FailureMessage = exception.Message };
             await jobs.WriteJobAsync(job);
             await jobs.WriteErrorAsync(job, exception.ToString());
             await UpdateProgressAsync(new JobProgress
@@ -224,12 +200,7 @@ internal static class WorkerProgram
         }
         catch (Exception exception)
         {
-            job = job with
-            {
-                Status = JobStatuses.Failed,
-                WorkerProcessId = null,
-                FailureMessage = exception.Message
-            };
+            job = job with { Status = JobStatuses.Failed, WorkerProcessId = null, FailureMessage = exception.Message };
             try
             {
                 await jobs.WriteJobAsync(job);
@@ -262,7 +233,6 @@ internal static class WorkerProgram
             {
                 Console.Error.WriteLine($"Unable to persist failure: {persistenceException.Message}");
             }
-
             Console.Error.WriteLine(exception);
             return 1;
         }
@@ -271,7 +241,7 @@ internal static class WorkerProgram
     private static int RunDoctor()
     {
         var availability = new ToolLocator().Locate();
-        var report = new
+        Console.WriteLine(JsonSerializer.Serialize(new
         {
             status = availability.Status,
             ready = availability.IsReady,
@@ -279,20 +249,15 @@ internal static class WorkerProgram
             ffprobe_path = availability.FfprobePath,
             message = availability.Message,
             base_directory = AppContext.BaseDirectory
-        };
-        Console.WriteLine(JsonSerializer.Serialize(report, JsonDefaults.Options));
+        }, JsonDefaults.Options));
         return availability.IsReady ? 0 : 69;
     }
 
     private static string? ParseJobPath(string[] args)
     {
         for (var index = 0; index < args.Length - 1; index++)
-        {
             if (string.Equals(args[index], "--job", StringComparison.OrdinalIgnoreCase))
-            {
                 return Path.GetFullPath(args[index + 1]);
-            }
-        }
         return null;
     }
 

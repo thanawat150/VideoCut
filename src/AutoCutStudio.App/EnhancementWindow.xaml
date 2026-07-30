@@ -1,0 +1,116 @@
+<Window x:Class="AutoCutStudio.App.EnhancementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Audio &amp; Visual Enhancement" Width="920" Height="700"
+        MinWidth="800" MinHeight="620" WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="ปรับเสียงและภาพอัตโนมัติ" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="ใช้ FFmpeg Filter จริงตาม Preset ที่ตรวจสอบได้ และสร้าง Output ใหม่โดยไม่แก้ Source"
+                       Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="เสียงพูด" FontWeight="SemiBold"/>
+                <ComboBox x:Name="AudioPresetComboBox" SelectedIndex="3" Margin="4" Padding="7">
+                    <ComboBoxItem Content="ไม่ปรับ" Tag="none"/>
+                    <ComboBoxItem Content="ลด Noise" Tag="noise_reduction"/>
+                    <ComboBoxItem Content="Voice Enhance" Tag="voice_enhance"/>
+                    <ComboBoxItem Content="ลด Noise + Voice Enhance" Tag="noise_and_voice"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="โทนสี" FontWeight="SemiBold"/>
+                <ComboBox x:Name="ColorPresetComboBox" SelectedIndex="1" Margin="4" Padding="7">
+                    <ComboBoxItem Content="ไม่ปรับ" Tag="none"/>
+                    <ComboBoxItem Content="Natural" Tag="natural"/>
+                    <ComboBoxItem Content="Vivid" Tag="vivid"/>
+                    <ComboBoxItem Content="Warm" Tag="warm"/>
+                    <ComboBoxItem Content="Cool" Tag="cool"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="ภาพสั่น" FontWeight="SemiBold"/>
+                <CheckBox x:Name="StabilizeCheckBox" Content="Basic Stabilization (deshake)" Margin="8,12,4,4"/>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="เพลงประกอบและ Ducking" FontWeight="SemiBold"/>
+                    <TextBox x:Name="MusicPathTextBox" IsReadOnly="True" Text="ยังไม่ได้เลือกเพลง"/>
+                    <WrapPanel>
+                        <CheckBox x:Name="DuckingCheckBox" Content="ลดเสียงเพลงอัตโนมัติเมื่อมีเสียงพูด" IsChecked="True" Margin="8"/>
+                        <TextBlock Text="ระดับเพลง" VerticalAlignment="Center" Margin="12,0,4,0"/>
+                        <Slider x:Name="MusicVolumeSlider" Minimum="0.05" Maximum="0.75" Value="0.28" Width="190"/>
+                    </WrapPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <Button Content="เลือกเพลง" Click="BrowseMusic_Click"/>
+                    <Button Content="ล้างเพลง" Click="ClearMusic_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3" Background="#0F172A" BorderBrush="#334155" BorderThickness="1"
+                CornerRadius="6" Padding="10" Margin="0,0,0,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="Beat Detection จาก PCM จริง" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="BeatStatusText" Text="ยังไม่ได้วิเคราะห์ Beat" Foreground="{StaticResource MutedTextBrush}"/>
+                </StackPanel>
+                <Button DockPanel.Dock="Right" x:Name="AnalyzeBeatButton" Content="วิเคราะห์ Beat" Click="AnalyzeBeat_Click"/>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <GroupBox Grid.Column="0" Header="Beat Markers" Margin="0,0,8,0">
+                <DataGrid x:Name="BeatGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding Index}" Width="60"/>
+                        <DataGridTextColumn Header="เวลา (s)" Binding="{Binding TimeSeconds, StringFormat=0.000}" Width="*"/>
+                        <DataGridTextColumn Header="Strength" Binding="{Binding Strength, StringFormat=0.00}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </GroupBox>
+            <GroupBox Grid.Column="1" Header="สิ่งที่จะประมวลผล">
+                <TextBox x:Name="PlanSummaryTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         Text="• เสียง: FFmpeg afftdn / highpass / lowpass / dynaudnorm ตาม Preset&#x0a;• สี: eq / colorbalance&#x0a;• Stabilize: deshake แบบพื้นฐาน&#x0a;• Ducking: sidechaincompress + amix&#x0a;&#x0a;ทุกขั้นสร้าง Output ใหม่และตรวจด้วย FFprobe"/>
+            </GroupBox>
+        </Grid>
+
+        <DockPanel Grid.Row="5" Margin="0,12,0,0">
+            <TextBlock DockPanel.Dock="Left" Text="Beat Markers ใช้ประกอบการตัดตามจังหวะ; รุ่นนี้ยังไม่ย้าย Cut Point โดยอัตโนมัติโดยไม่ยืนยัน"
+                       Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button Content="ยกเลิก" Click="Cancel_Click"/>
+                <Button Content="สร้าง Enhancement Job" Click="Create_Click" Background="#047857"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>
