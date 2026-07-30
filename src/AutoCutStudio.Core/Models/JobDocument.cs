@@ -21,7 +21,7 @@ public sealed record JobDocument
     public Guid JobId { get; init; } = Guid.NewGuid();
     public Guid ProjectId { get; init; }
     public string ProjectRoot { get; init; } = string.Empty;
-    public string JobType { get; init; } = "timeline_export";
+    public string JobType { get; init; } = JobTypes.TimelineExport;
     public string Status { get; init; } = JobStatuses.Draft;
     public int Priority { get; init; }
     public string InputPath { get; init; } = string.Empty;
@@ -29,6 +29,7 @@ public sealed record JobDocument
     public List<TimelineSegment> Segments { get; init; } = [];
     public bool ExpectedInputHasAudio { get; init; }
     public double ExpectedDurationSeconds { get; init; }
+    public RenderRecipe? RenderRecipe { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
     public int? WorkerProcessId { get; init; }
