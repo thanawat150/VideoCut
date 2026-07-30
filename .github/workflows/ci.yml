@@ -1,0 +1,70 @@
+name: Phase 1 Windows CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test-package:
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install FFmpeg
+        shell: pwsh
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Show tools
+        shell: pwsh
+        run: |
+          dotnet --info
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Restore
+        run: dotnet restore AutoCutStudio.sln
+
+      - name: Build
+        run: dotnet build AutoCutStudio.sln -c Release --no-restore
+
+      - name: Test with real media
+        run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=phase1-tests.trx"
+
+      - name: Verify asInvoker manifest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "src/AutoCutStudio.App/app.manifest" -Raw
+          if ($manifest -notmatch 'requestedExecutionLevel level="asInvoker"') {
+            throw "Application manifest is not asInvoker."
+          }
+
+      - name: Build portable artifact
+        shell: pwsh
+        run: ./scripts/build-portable.ps1
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-win-x64
+          path: |
+            artifacts/AutoCutStudio-win-x64.zip
+            artifacts/AutoCutStudio-win-x64.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-test-results
+          path: |
+            **/TestResults/*.trx
+          if-no-files-found: warn
