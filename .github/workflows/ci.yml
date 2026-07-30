@@ -1,4 +1,4 @@
-name: Phase 1 Windows CI
+name: AutoCut Studio Windows CI
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
 jobs:
   build-test-package:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 65
 
     steps:
       - name: Checkout
@@ -23,12 +23,57 @@ jobs:
         shell: pwsh
         run: choco install ffmpeg -y --no-progress
 
+      - name: Download pinned Whisper.cpp and multilingual model
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "v1.8.6"
+          $toolDownload = Join-Path $PWD ".tools\whisper-download"
+          $toolDirectory = Join-Path $PWD ".tools\whisper"
+          $modelDirectory = Join-Path $PWD ".tools\whisper-model"
+          New-Item $toolDownload -ItemType Directory -Force | Out-Null
+          New-Item $toolDirectory -ItemType Directory -Force | Out-Null
+          New-Item $modelDirectory -ItemType Directory -Force | Out-Null
+
+          $archive = Join-Path $env:RUNNER_TEMP "whisper-bin-x64.zip"
+          curl.exe -L --fail --retry 3 --retry-delay 2 `
+            "https://github.com/ggml-org/whisper.cpp/releases/download/$version/whisper-bin-x64.zip" `
+            -o $archive
+          Expand-Archive $archive $toolDownload -Force
+          $cli = Get-ChildItem $toolDownload -Filter "whisper-cli.exe" -File -Recurse |
+            Select-Object -First 1
+          if ($null -eq $cli) { throw "Official whisper.cpp archive did not contain whisper-cli.exe." }
+          Copy-Item (Join-Path $cli.Directory.FullName "*") $toolDirectory -Recurse -Force
+
+          $model = Join-Path $modelDirectory "ggml-base-q5_1.bin"
+          curl.exe -L --fail --retry 3 --retry-delay 2 `
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin?download=true" `
+            -o $model
+          if (-not (Test-Path $model -PathType Leaf) -or (Get-Item $model).Length -lt 50MB) {
+            throw "Whisper multilingual model is missing or incomplete."
+          }
+
+          curl.exe -L --fail --retry 3 `
+            "https://raw.githubusercontent.com/ggml-org/whisper.cpp/$version/LICENSE" `
+            -o (Join-Path $toolDirectory "LICENSE-whisper.cpp.txt")
+
+          $whisperCli = Join-Path $toolDirectory "whisper-cli.exe"
+          & $whisperCli -h
+          if ($LASTEXITCODE -ne 0) { throw "Downloaded whisper-cli.exe failed to start." }
+
+          "AUTOCUT_WHISPER_CLI_PATH=$whisperCli" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_WHISPER_MODEL_PATH=$model" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_BUNDLE_WHISPER_DIR=$toolDirectory" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_BUNDLE_WHISPER_MODEL=$model" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Show tools
         shell: pwsh
         run: |
           dotnet --info
           ffmpeg -version
           ffprobe -version
+          & $env:AUTOCUT_WHISPER_CLI_PATH -h
+          Get-Item $env:AUTOCUT_WHISPER_MODEL_PATH | Format-List FullName,Length
 
       - name: Restore
         run: dotnet restore AutoCutStudio.sln
@@ -36,8 +81,8 @@ jobs:
       - name: Build
         run: dotnet build AutoCutStudio.sln -c Release --no-restore
 
-      - name: Test with real media
-        run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=phase1-tests.trx"
+      - name: Test with real media and real Whisper
+        run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=autocut-tests.trx"
 
       - name: Verify asInvoker manifest
         shell: pwsh
@@ -47,13 +92,14 @@ jobs:
             throw "Application manifest is not asInvoker."
           }
 
-      - name: Build portable artifact with bundled FFmpeg
+      - name: Build portable artifact with FFmpeg and Whisper
         shell: pwsh
         run: ./scripts/build-portable.ps1
 
       - name: Verify portable ZIP and bundled dependencies
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $zip = Resolve-Path "artifacts/AutoCutStudio-win-x64.zip"
           $verifyRoot = Join-Path $env:RUNNER_TEMP "autocut-portable-verify"
           Remove-Item $verifyRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -63,18 +109,29 @@ jobs:
           $worker = Join-Path $verifyRoot "AutoCutStudio.Worker.exe"
           $ffmpeg = Join-Path $verifyRoot "tools\ffmpeg\ffmpeg.exe"
           $ffprobe = Join-Path $verifyRoot "tools\ffmpeg\ffprobe.exe"
-          $bundleManifest = Join-Path $verifyRoot "third_party\ffmpeg\bundle-manifest.json"
+          $whisper = Join-Path $verifyRoot "tools\whisper\whisper-cli.exe"
+          $whisperModel = Join-Path $verifyRoot "models\whisper\ggml-base-q5_1.bin"
+          $ffmpegManifest = Join-Path $verifyRoot "third_party\ffmpeg\bundle-manifest.json"
+          $whisperManifest = Join-Path $verifyRoot "third_party\whisper.cpp\bundle-manifest.json"
 
-          foreach ($required in @($app, $worker, $ffmpeg, $ffprobe, $bundleManifest)) {
+          foreach ($required in @(
+            $app, $worker, $ffmpeg, $ffprobe, $whisper, $whisperModel,
+            $ffmpegManifest, $whisperManifest
+          )) {
             if (-not (Test-Path $required -PathType Leaf)) {
               throw "Required portable file is missing: $required"
             }
+          }
+          if ((Get-Item $whisperModel).Length -lt 50MB) {
+            throw "Bundled Whisper model is unexpectedly small."
           }
 
           & $ffmpeg -version
           if ($LASTEXITCODE -ne 0) { throw "Bundled ffmpeg.exe failed to start." }
           & $ffprobe -version
           if ($LASTEXITCODE -ne 0) { throw "Bundled ffprobe.exe failed to start." }
+          & $whisper -h
+          if ($LASTEXITCODE -ne 0) { throw "Bundled whisper-cli.exe failed to start." }
 
           $doctorOutput = & $worker --doctor
           if ($LASTEXITCODE -ne 0) {
@@ -104,6 +161,36 @@ jobs:
             throw "Portable test media is missing a video or audio stream."
           }
 
+          $speechWav = Join-Path $testDirectory "generated local speech.wav"
+          Add-Type -AssemblyName System.Speech
+          $voice = New-Object System.Speech.Synthesis.SpeechSynthesizer
+          try {
+            $voice.SetOutputToWaveFile($speechWav)
+            $voice.Speak("Hello. This is the Auto Cut Studio local transcription smoke test.")
+          }
+          finally {
+            $voice.Dispose()
+          }
+          if (-not (Test-Path $speechWav -PathType Leaf)) {
+            throw "Windows SAPI did not create speech test media."
+          }
+
+          $transcriptBase = Join-Path $testDirectory "portable transcript"
+          Push-Location (Split-Path $whisper -Parent)
+          try {
+            & $whisper -m $whisperModel -f $speechWav -l en -t 2 -ng `
+              -ojf -osrt -otxt -of $transcriptBase
+          }
+          finally {
+            Pop-Location
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Bundled Whisper transcription smoke test failed." }
+          foreach ($output in @("$transcriptBase.json", "$transcriptBase.srt", "$transcriptBase.txt")) {
+            if (-not (Test-Path $output -PathType Leaf) -or (Get-Item $output).Length -eq 0) {
+              throw "Bundled Whisper did not create a valid output: $output"
+            }
+          }
+
           $zipTest = [System.IO.Compression.ZipFile]::OpenRead($zip)
           try {
             foreach ($entry in $zipTest.Entries) {
@@ -112,19 +199,15 @@ jobs:
                 $buffer = New-Object byte[] 81920
                 while ($stream.Read($buffer, 0, $buffer.Length) -gt 0) { }
               }
-              finally {
-                $stream.Dispose()
-              }
+              finally { $stream.Dispose() }
             }
           }
-          finally {
-            $zipTest.Dispose()
-          }
+          finally { $zipTest.Dispose() }
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoCutStudio-win-x64-bundled
+          name: AutoCutStudio-win-x64-phase2
           path: |
             artifacts/AutoCutStudio-win-x64.zip
             artifacts/AutoCutStudio-win-x64.zip.sha256
@@ -134,7 +217,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase1-test-results
+          name: autocut-test-results
           path: |
             **/TestResults/*.trx
           if-no-files-found: warn
