@@ -1,7 +1,7 @@
 <Window x:Class="AutoCutStudio.App.SocialAutomationWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Social Media Automation — Highlight & Shorts"
+        Title="Social Media Automation — Highlight &amp; Shorts"
         Width="1120" Height="780" MinWidth="950" MinHeight="680"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="14">
