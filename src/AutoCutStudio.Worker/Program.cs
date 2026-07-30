@@ -11,14 +11,12 @@ internal static class WorkerProgram
     {
         if (args.Any(argument => string.Equals(argument, "--doctor", StringComparison.OrdinalIgnoreCase)))
             return RunDoctor();
-
         var jobPath = ParseJobPath(args);
         if (jobPath is null)
         {
             Console.Error.WriteLine("Usage: AutoCutStudio.Worker --job <path-to-job.json> | --doctor");
             return 64;
         }
-
         var jobs = new JobRepository();
         JobDocument job;
         try { job = await jobs.ReadJobAsync(jobPath); }
@@ -40,7 +38,6 @@ internal static class WorkerProgram
             var tools = new ToolLocator();
             var availability = tools.Locate();
             if (!availability.IsReady) throw new InvalidOperationException(availability.Message);
-
             job = job with
             {
                 Status = JobStatuses.Preparing,
@@ -88,6 +85,9 @@ internal static class WorkerProgram
                 JobTypes.EnhancedExport => new FfmpegEnhancedProcessor(tools),
                 AdvancedJobTypes.PrivacyBlurExport => new FfmpegPrivacyBlurProcessor(tools),
                 AdvancedJobTypes.TemplateVideoExport => new FfmpegTemplateVideoProcessor(tools),
+                ProfessionalJobTypes.MulticamExport or
+                ProfessionalJobTypes.KeyframeExport or
+                ProfessionalJobTypes.NestedSequenceExport => new FfmpegProfessionalProcessor(tools),
                 _ => new FfmpegTimelineProcessor(tools)
             };
             var processingReport = await processor.ProcessAsync(job, EmitAsync, UpdateProgressAsync);
@@ -133,7 +133,6 @@ internal static class WorkerProgram
                 OutputPath = job.OutputPath,
                 Severity = qaReport.Warnings.Count == 0 ? "info" : "warning"
             });
-
             job = job with
             {
                 Status = qaReport.Warnings.Count == 0 ? JobStatuses.Completed : JobStatuses.CompletedWithWarnings,
@@ -254,6 +253,12 @@ internal static class WorkerProgram
             face_model_ready = vision.FaceModelPath is not null,
             object_model_ready = vision.ObjectModelPath is not null,
             vision_message = vision.Message,
+            professional_jobs = new[]
+            {
+                ProfessionalJobTypes.MulticamExport,
+                ProfessionalJobTypes.KeyframeExport,
+                ProfessionalJobTypes.NestedSequenceExport
+            },
             base_directory = AppContext.BaseDirectory
         }, JsonDefaults.Options));
         return availability.IsReady ? 0 : 69;
