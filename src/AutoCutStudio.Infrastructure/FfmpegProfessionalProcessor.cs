@@ -242,12 +242,13 @@ public sealed class FfmpegProfessionalProcessor : IVideoProcessor
             graph.Append($"[0:v:0]trim=start={F(left.TimeSeconds)}:end={F(right.TimeSeconds)},setpts=PTS-STARTPTS,");
             graph.Append($"scale={outputWidth}:{outputHeight}:force_original_aspect_ratio=increase,crop={outputWidth}:{outputHeight},setsar=1,");
             graph.Append($"scale=w='max({outputWidth},trunc({outputWidth}*{zoom}/2)*2)':h='max({outputHeight},trunc({outputHeight}*{zoom}/2)*2)':eval=frame,");
-            graph.Append($"crop=w={outputWidth}:h={outputHeight}:x='max(0,min(iw-out_w,(iw-out_w)*{focusX}))':y='max(0,min(ih-out_h,(ih-out_h)*{focusY}))',");
+            graph.Append($"crop=w={outputWidth}:h={outputHeight}:x='max(0,min(iw-out_w,(iw-out_w)*{focusX}))':y='max(0,min(ih-out_h,(ih-out_h)*{focusY}))',setsar=1,");
             graph.Append($"fps={outputFrameRate},format=yuv420p[v{index}];");
             if (job.ExpectedInputHasAudio)
             {
-                var gain = $"({F(left.AudioGain)}+({F(right.AudioGain - left.AudioGain)})*{progress})";
-                graph.Append($"[0:a:0]atrim=start={F(left.TimeSeconds)}:end={F(right.TimeSeconds)},asetpts=PTS-STARTPTS,volume='{gain}':eval=frame[a{index}];");
+                var interpolatedGain = $"({F(left.AudioGain)}+({F(right.AudioGain - left.AudioGain)})*{progress})";
+                var gain = $"if(isnan(t),{F(left.AudioGain)},{interpolatedGain})";
+                graph.Append($"[0:a:0]atrim=start={F(left.TimeSeconds)}:end={F(right.TimeSeconds)},asetpts=PTS-STARTPTS,volume='{gain}':eval=frame,aresample=async=1:first_pts=0[a{index}];");
             }
         }
         for (var index = 0; index < intervalCount; index++)
@@ -286,9 +287,9 @@ public sealed class FfmpegProfessionalProcessor : IVideoProcessor
             var clip = clips[index];
             graph.Append($"[{clip.InputIndex}:v:0]trim=start={F(clip.Start)}:end={F(clip.End)},setpts=PTS-STARTPTS,");
             graph.Append($"scale={ClampWidth(width)}:{ClampHeight(height)}:force_original_aspect_ratio=decrease,");
-            graph.Append($"pad={ClampWidth(width)}:{ClampHeight(height)}:(ow-iw)/2:(oh-ih)/2,fps={ClampFps(frameRate)},format=yuv420p[v{index}];");
+            graph.Append($"pad={ClampWidth(width)}:{ClampHeight(height)}:(ow-iw)/2:(oh-ih)/2,fps={ClampFps(frameRate)},setsar=1,format=yuv420p[v{index}];");
             if (includeAudio)
-                graph.Append($"[{clip.InputIndex}:a:0]atrim=start={F(clip.Start)}:end={F(clip.End)},asetpts=PTS-STARTPTS[a{index}];");
+                graph.Append($"[{clip.InputIndex}:a:0]atrim=start={F(clip.Start)}:end={F(clip.End)},asetpts=PTS-STARTPTS,aresample=async=1:first_pts=0[a{index}];");
         }
         for (var index = 0; index < clips.Count; index++)
         {
