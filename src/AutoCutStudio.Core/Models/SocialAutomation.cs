@@ -32,9 +32,12 @@ public sealed record RenderRecipe
     public bool BurnCaptions { get; init; }
     public string? HookText { get; init; }
     public string? CtaText { get; init; }
-    public string AudioEnhancementPreset { get; init; } = "none";
-    public string ColorPreset { get; init; } = "none";
+    public string AudioEnhancementPreset { get; init; } = AudioEnhancementPresets.None;
+    public string ColorPreset { get; init; } = ColorPresets.None;
     public bool Stabilize { get; init; }
+    public string? MusicPath { get; init; }
+    public bool EnableMusicDucking { get; init; }
+    public double MusicVolume { get; init; } = 0.28;
 }
 
 public sealed record HighlightCandidate
