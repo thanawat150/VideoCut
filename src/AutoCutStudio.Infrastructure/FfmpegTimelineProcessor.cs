@@ -119,7 +119,7 @@ public sealed class FfmpegTimelineProcessor : IVideoProcessor
                 var key = line[..separator];
                 var value = line[(separator + 1)..];
 
-                if (key is "out_time_us" or "out_time_ms" &&
+                if ((key is "out_time_us" or "out_time_ms") &&
                     long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var microseconds))
                 {
                     var currentSeconds = microseconds / 1_000_000d;
@@ -133,7 +133,7 @@ public sealed class FfmpegTimelineProcessor : IVideoProcessor
                     if (rounded > lastPublishedPercentage)
                     {
                         lastPublishedPercentage = rounded;
-                        var eta = percentage <= 0.1
+                        double? eta = percentage <= 0.1
                             ? null
                             : Math.Max(0, stopwatch.Elapsed.TotalSeconds / (percentage / 100d) - stopwatch.Elapsed.TotalSeconds);
 
