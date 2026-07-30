@@ -176,15 +176,17 @@ jobs:
           }
 
           $transcriptBase = Join-Path $testDirectory "portable transcript"
-          Push-Location (Split-Path $whisper -Parent)
+          $whisperExit = -1
+          Push-Location $testDirectory
           try {
-            & $whisper -m $whisperModel -f $speechWav -l en -t 2 -ng `
-              -ojf -osrt -otxt -of $transcriptBase
+            & $whisper -m $whisperModel -f "generated local speech.wav" -l en -t 2 -ng `
+              -ojf -osrt -otxt -of "portable transcript"
+            $whisperExit = $LASTEXITCODE
           }
           finally {
             Pop-Location
           }
-          if ($LASTEXITCODE -ne 0) { throw "Bundled Whisper transcription smoke test failed." }
+          if ($whisperExit -ne 0) { throw "Bundled Whisper transcription smoke test failed." }
           foreach ($output in @("$transcriptBase.json", "$transcriptBase.srt", "$transcriptBase.txt")) {
             if (-not (Test-Path $output -PathType Leaf) -or (Get-Item $output).Length -eq 0) {
               throw "Bundled Whisper did not create a valid output: $output"
