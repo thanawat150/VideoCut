@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>AutoCutStudio</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AutoCutStudio.Core\AutoCutStudio.Core.csproj" />
+    <ProjectReference Include="..\AutoCutStudio.Infrastructure\AutoCutStudio.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
