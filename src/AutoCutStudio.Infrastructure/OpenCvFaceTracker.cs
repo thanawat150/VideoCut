@@ -24,7 +24,7 @@ public sealed class OpenCvFaceTracker
         CancellationToken cancellationToken = default)
     {
         var availability = _visionTools.Locate();
-        if (!availability.IsReady || string.IsNullOrWhiteSpace(availability.FaceModelPath))
+        if (string.IsNullOrWhiteSpace(availability.FaceModelPath))
             throw new InvalidOperationException(availability.Message);
 
         var workingDirectory = Path.Combine(
@@ -42,23 +42,24 @@ public sealed class OpenCvFaceTracker
                 maximumFrames,
                 cancellationToken);
             var allFaces = new List<DetectedFace>();
-            using var detector = FaceDetectorYN.Create(
-                availability.FaceModelPath,
-                string.Empty,
-                new Size(320, 320),
-                confidenceThreshold,
-                0.3f,
-                5000);
 
             foreach (var frame in frames)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var image = Cv2.ImRead(frame.Path, ImreadModes.Color);
                 if (image.Empty()) continue;
-                detector.SetInputSize(image.Size());
+
+                using var detector = FaceDetectorYN.Create(
+                    availability.FaceModelPath,
+                    string.Empty,
+                    image.Size(),
+                    confidenceThreshold,
+                    0.3f,
+                    5000);
                 using var faces = new Mat();
                 detector.Detect(image, faces);
-                for (var row = 0; row < faces.Rows; row++)
+                var rowCount = faces.Rows;
+                for (var row = 0; row < rowCount; row++)
                 {
                     var score = faces.At<float>(row, 14);
                     if (score < confidenceThreshold) continue;
