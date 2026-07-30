@@ -18,9 +18,11 @@ This repository currently implements the **Phase 1 core workflow**:
 
 ## Current status
 
-Status: `in_progress`
+Status: `passed_with_warnings`
 
-The source code and CI workflow are present. A successful Windows CI run is required before changing the status to `passed` or `passed_with_warnings`.
+Windows CI compiles the application, runs unit and real-media integration tests, verifies the `asInvoker` manifest, builds the self-contained portable package, expands the ZIP, starts the bundled FFmpeg/FFprobe binaries, runs the packaged worker dependency doctor, creates test media in a Thai path containing spaces, and reads every ZIP entry to detect corruption.
+
+A manual end-to-end UI smoke test on the user's Windows 10/11 machine is still required before calling the phase fully accepted.
 
 See:
 
@@ -31,7 +33,7 @@ See:
 
 - .NET 8
 - WPF
-- FFmpeg / FFprobe as external local tools
+- FFmpeg / FFprobe as bundled local tools in CI portable builds
 - Separate .NET worker process
 - JSON project and job persistence
 - xUnit integration tests
@@ -45,20 +47,36 @@ dotnet build AutoCutStudio.sln -c Release
 dotnet test AutoCutStudio.sln -c Release
 ```
 
-Portable packaging:
+Portable packaging requires real `ffmpeg.exe` and `ffprobe.exe` so the script cannot accidentally produce a package with a non-working Render function:
 
 ```powershell
-pwsh ./scripts/build-portable.ps1
+pwsh ./scripts/build-portable.ps1 -FfmpegDirectory "C:\path\to\ffmpeg\bin"
 ```
 
-The portable package does not silently download FFmpeg. Place `ffmpeg.exe` and `ffprobe.exe` in one of these locations:
+Alternatively, set `AUTOCUT_BUNDLE_FFMPEG_DIR` or install FFmpeg in a location the build script can resolve. The generated ZIP contains:
 
-1. `tools/ffmpeg/` beside the application,
-2. beside the application executable,
-3. a directory in `PATH`, or
-4. paths supplied through `AUTOCUT_FFMPEG_PATH` and `AUTOCUT_FFPROBE_PATH`.
+```text
+AutoCutStudio.exe
+AutoCutStudio.Worker.exe
+tools/ffmpeg/ffmpeg.exe
+tools/ffmpeg/ffprobe.exe
+third_party/ffmpeg/bundle-manifest.json
+```
 
-The UI reports the dependency as missing until both tools are found.
+The application resolves tools in this order:
+
+1. paths supplied through `AUTOCUT_FFMPEG_PATH` and `AUTOCUT_FFPROBE_PATH`,
+2. `tools/ffmpeg/` beside the application,
+3. beside the application executable,
+4. a directory in `PATH`.
+
+Dependency diagnostic command:
+
+```powershell
+./AutoCutStudio.Worker.exe --doctor
+```
+
+It returns exit code `0` only when the same `ToolLocator` used by real media jobs detects both bundled tools.
 
 ## Privacy and safety
 
