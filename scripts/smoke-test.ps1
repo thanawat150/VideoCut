@@ -5,15 +5,17 @@ $artifacts = Join-Path $root 'artifacts/smoke'
 $appOut = Join-Path $artifacts 'app'
 $media = Join-Path $artifacts 'input.mp4'
 $output = Join-Path $artifacts 'output.mp4'
+$jobsRoot = Join-Path $env:LOCALAPPDATA 'AutoCutStudio/Jobs'
 
 Remove-Item $artifacts -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $jobsRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item $appOut -ItemType Directory -Force | Out-Null
 
 dotnet publish (Join-Path $root 'src/AutoCutStudio/AutoCutStudio.csproj') -c Release -r win-x64 --self-contained false -o $appOut
 ffmpeg -hide_banner -loglevel error -f lavfi -i 'testsrc=size=640x360:rate=30' -f lavfi -i 'sine=frequency=1000' -t 3 -c:v libx264 -pix_fmt yuv420p -c:a aac -y $media
 
 $jobId = [Guid]::NewGuid()
-$jobRoot = Join-Path $env:LOCALAPPDATA ('AutoCutStudio/Jobs/' + $jobId.ToString('N'))
+$jobRoot = Join-Path $jobsRoot $jobId.ToString('N')
 New-Item $jobRoot -ItemType Directory -Force | Out-Null
 $job = @{
   jobId = $jobId
@@ -37,8 +39,21 @@ $job | Set-Content (Join-Path $jobRoot 'job.json') -Encoding UTF8
 '' | Set-Content (Join-Path $jobRoot 'error.log') -Encoding UTF8
 
 $process = Start-Process -FilePath (Join-Path $appOut 'AutoCutStudio.exe') -ArgumentList '--worker','--once' -PassThru -Wait
-if ($process.ExitCode -ne 0) { throw "Worker exited with code $($process.ExitCode)" }
-if (-not (Test-Path $output)) { throw 'Smoke test failed: output.mp4 was not created.' }
+if ($process.ExitCode -ne 0) {
+  Write-Host '--- worker-crash.log ---'
+  Get-Content (Join-Path $jobsRoot 'worker-crash.log') -ErrorAction SilentlyContinue
+  Write-Host '--- run.log ---'
+  Get-Content (Join-Path $jobRoot 'run.log') -ErrorAction SilentlyContinue
+  Write-Host '--- error.log ---'
+  Get-Content (Join-Path $jobRoot 'error.log') -ErrorAction SilentlyContinue
+  Write-Host '--- job.json ---'
+  Get-Content (Join-Path $jobRoot 'job.json') -ErrorAction SilentlyContinue
+  throw "Worker exited with code $($process.ExitCode)"
+}
+if (-not (Test-Path $output)) {
+  Get-Content (Join-Path $jobRoot 'error.log') -ErrorAction SilentlyContinue
+  throw 'Smoke test failed: output.mp4 was not created.'
+}
 
 $probe = ffprobe -v error -show_entries 'format=duration:stream=codec_type' -of json $output | ConvertFrom-Json
 $duration = [double]$probe.format.duration
