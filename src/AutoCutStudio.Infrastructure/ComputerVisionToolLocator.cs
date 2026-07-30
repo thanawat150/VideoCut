@@ -11,10 +11,10 @@ public sealed class ComputerVisionToolLocator
             Path.Combine(AppContext.BaseDirectory, "models", "opencv", "face_detection_yunet_2023mar.onnx"));
         var objectPath = Find(
             "AUTOCUT_OBJECT_MODEL_PATH",
-            Path.Combine(AppContext.BaseDirectory, "models", "opencv", "yolov8n.onnx"));
+            Path.Combine(AppContext.BaseDirectory, "models", "opencv", "object_detection_yolox_2022nov.onnx"));
         var missing = new List<string>();
         if (facePath is null) missing.Add("YuNet face model");
-        if (objectPath is null) missing.Add("YOLOv8 object model");
+        if (objectPath is null) missing.Add("OpenCV Zoo YOLOX object model");
         return missing.Count > 0
             ? new ComputerVisionToolAvailability(
                 false,
@@ -27,7 +27,7 @@ public sealed class ComputerVisionToolLocator
                 facePath,
                 objectPath,
                 "ready",
-                "OpenCV YuNet Face Detection และ YOLO Object Detection พร้อมใช้งาน");
+                "OpenCV YuNet Face Detection และ YOLOX Object Detection พร้อมใช้งาน");
     }
 
     private static string? Find(string environmentVariable, string bundledPath)
