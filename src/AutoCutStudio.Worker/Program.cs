@@ -9,10 +9,15 @@ internal static class WorkerProgram
 {
     public static async Task<int> RunAsync(string[] args)
     {
+        if (args.Any(argument => string.Equals(argument, "--doctor", StringComparison.OrdinalIgnoreCase)))
+        {
+            return RunDoctor();
+        }
+
         var jobPath = ParseJobPath(args);
         if (jobPath is null)
         {
-            Console.Error.WriteLine("Usage: AutoCutStudio.Worker --job <path-to-job.json>");
+            Console.Error.WriteLine("Usage: AutoCutStudio.Worker --job <path-to-job.json> | --doctor");
             return 64;
         }
 
@@ -273,6 +278,23 @@ internal static class WorkerProgram
             Console.Error.WriteLine(exception);
             return 1;
         }
+    }
+
+    private static int RunDoctor()
+    {
+        var availability = new ToolLocator().Locate();
+        var report = new
+        {
+            status = availability.Status,
+            ready = availability.IsReady,
+            ffmpeg_path = availability.FfmpegPath,
+            ffprobe_path = availability.FfprobePath,
+            message = availability.Message,
+            base_directory = AppContext.BaseDirectory
+        };
+
+        Console.WriteLine(JsonSerializer.Serialize(report, JsonDefaults.Options));
+        return availability.IsReady ? 0 : 69;
     }
 
     private static string? ParseJobPath(string[] args)
