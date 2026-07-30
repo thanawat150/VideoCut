@@ -24,6 +24,7 @@ public partial class App : Application
                     window.EnableSpeechEditingUi();
                     window.EnableSocialAutomationUi();
                     window.EnableEnhancementUi();
+                    window.EnableAdvancedAiUi();
                 }
             }));
     }
