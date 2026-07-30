@@ -30,6 +30,8 @@ public sealed record JobDocument
     public bool ExpectedInputHasAudio { get; init; }
     public double ExpectedDurationSeconds { get; init; }
     public RenderRecipe? RenderRecipe { get; init; }
+    public PrivacyBlurRecipe? PrivacyBlurRecipe { get; init; }
+    public TemplateVideoJobRecipe? TemplateVideoRecipe { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
     public int? WorkerProcessId { get; init; }
