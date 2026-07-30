@@ -82,7 +82,9 @@ public sealed class SocialAutomationTests
         Assert.Contains("Style: Caption", ass);
         Assert.Contains("\\fad", ass);
         Assert.Contains("หยุดดูตรงนี้", ass);
-        Assert.Contains("ข้อความภาษาไทยสำหรับ Caption", ass);
+        Assert.Contains("ข้อความภาษาไทยสำหรับ", ass);
+        Assert.Contains("Caption", ass);
+        Assert.Contains("\\N", ass);
         Assert.Contains("ติดตามตอนต่อไป", ass);
     }
 
