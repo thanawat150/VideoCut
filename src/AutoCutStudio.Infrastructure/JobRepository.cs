@@ -25,13 +25,8 @@ public sealed class JobRepository : IJobRepository
             Path.GetFileNameWithoutExtension(media.SourcePath) + "_cut",
             ".mp4");
         var job = BuildJob(
-            project,
-            media,
-            segments,
-            JobTypes.TimelineExport,
-            outputPath,
-            recipe: null,
-            priority: 0);
+            project, media, segments, JobTypes.TimelineExport, outputPath,
+            recipe: null, priority: 0);
         return await InitializeJobAsync(job, cancellationToken);
     }
 
@@ -43,6 +38,7 @@ public sealed class JobRepository : IJobRepository
         string assContent,
         string hookText,
         string ctaText,
+        bool burnCaptions,
         int priority = 10,
         CancellationToken cancellationToken = default)
     {
@@ -67,8 +63,12 @@ public sealed class JobRepository : IJobRepository
             Path.Combine(project.RootPath, "jobs", jobId.ToString("N")),
             project.RootPath);
         Directory.CreateDirectory(jobDirectory);
-        var captionPath = Path.Combine(jobDirectory, "captions.ass");
-        await File.WriteAllTextAsync(captionPath, assContent, new UTF8Encoding(false), cancellationToken);
+        string? captionPath = null;
+        if (burnCaptions)
+        {
+            captionPath = Path.Combine(jobDirectory, "captions.ass");
+            await File.WriteAllTextAsync(captionPath, assContent, new UTF8Encoding(false), cancellationToken);
+        }
 
         var recipe = new RenderRecipe
         {
@@ -80,19 +80,13 @@ public sealed class JobRepository : IJobRepository
             VideoBitrateKbps = preset.VideoBitrateKbps,
             AudioBitrateKbps = preset.AudioBitrateKbps,
             CaptionAssPath = captionPath,
-            BurnCaptions = true,
+            BurnCaptions = burnCaptions,
             HookText = hookText,
             CtaText = ctaText
         };
         var job = BuildJob(
-            project,
-            media,
-            [segment],
-            JobTypes.SocialClipExport,
-            outputPath,
-            recipe,
-            priority,
-            jobId);
+            project, media, [segment], JobTypes.SocialClipExport,
+            outputPath, recipe, priority, jobId);
         return await InitializeJobAsync(job, cancellationToken);
     }
 
@@ -122,9 +116,7 @@ public sealed class JobRepository : IJobRepository
         UpdatedAt = DateTimeOffset.UtcNow
     };
 
-    private async Task<JobDocument> InitializeJobAsync(
-        JobDocument job,
-        CancellationToken cancellationToken)
+    private async Task<JobDocument> InitializeJobAsync(JobDocument job, CancellationToken cancellationToken)
     {
         var jobDirectory = GetJobDirectory(job);
         Directory.CreateDirectory(jobDirectory);
@@ -139,9 +131,7 @@ public sealed class JobRepository : IJobRepository
             UpdatedAt = DateTimeOffset.UtcNow
         }, cancellationToken);
         await AtomicJsonFile.WriteAsync(
-            Path.Combine(jobDirectory, "control.json"),
-            new JobControl(),
-            cancellationToken);
+            Path.Combine(jobDirectory, "control.json"), new JobControl(), cancellationToken);
         await File.WriteAllTextAsync(Path.Combine(jobDirectory, "run.log"), string.Empty, Encoding.UTF8, cancellationToken);
         await File.WriteAllTextAsync(Path.Combine(jobDirectory, "error.log"), string.Empty, Encoding.UTF8, cancellationToken);
         await File.WriteAllTextAsync(Path.Combine(jobDirectory, "agent-events.jsonl"), string.Empty, Encoding.UTF8, cancellationToken);
@@ -202,7 +192,6 @@ public sealed class JobRepository : IJobRepository
                 // A corrupt job remains visible through its files; skip it from the runnable queue.
             }
         }
-
         return jobs.OrderBy(job => job.Priority).ThenBy(job => job.CreatedAt).ToList();
     }
 
@@ -227,12 +216,8 @@ public sealed class JobRepository : IJobRepository
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await using var stream = new FileStream(
-            path,
-            FileMode.Append,
-            FileAccess.Write,
-            FileShare.ReadWrite,
-            16 * 1024,
-            FileOptions.Asynchronous);
+            path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite,
+            16 * 1024, FileOptions.Asynchronous);
         await using var writer = new StreamWriter(stream, new UTF8Encoding(false));
         await writer.WriteLineAsync(line.AsMemory(), cancellationToken);
         await writer.FlushAsync(cancellationToken);
