@@ -25,8 +25,24 @@ public partial class App : Application
             await JobWorker.RunAsync(runOnce);
             Shutdown(0);
         }
-        catch
+        catch (Exception ex)
         {
+            try
+            {
+                var jobsRoot = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "AutoCutStudio",
+                    "Jobs");
+                Directory.CreateDirectory(jobsRoot);
+                await File.AppendAllTextAsync(
+                    Path.Combine(jobsRoot, "worker-crash.log"),
+                    $"{DateTimeOffset.Now:O}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+            }
+            catch
+            {
+                // The original worker error remains the primary failure.
+            }
+
             Shutdown(1);
         }
     }
