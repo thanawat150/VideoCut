@@ -300,8 +300,8 @@ public sealed class AdvancedAiTests
             var outputFrame = Path.Combine(root, "output.png");
             await RunFfmpegAsync(availability.FfmpegPath!, "-hide_banner", "-y", "-ss", "1", "-i", source, "-frames:v", "1", sourceFrame);
             await RunFfmpegAsync(availability.FfmpegPath!, "-hide_banner", "-y", "-ss", "1", "-i", job.OutputPath, "-frames:v", "1", outputFrame);
-            using var left = Cv2.ImRead(sourceFrame, ImreadModes.Color);
-            using var right = Cv2.ImRead(outputFrame, ImreadModes.Color);
+            using var left = ReadImageUnicode(sourceFrame);
+            using var right = ReadImageUnicode(outputFrame);
             using var difference = new Mat();
             Cv2.Absdiff(left, right, difference);
             var changed = Cv2.Sum(difference).Val0 + Cv2.Sum(difference).Val1 + Cv2.Sum(difference).Val2;
@@ -311,6 +311,18 @@ public sealed class AdvancedAiTests
         {
             Directory.Delete(root, true);
         }
+    }
+
+    private static Mat ReadImageUnicode(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var image = Cv2.ImDecode(bytes, ImreadModes.Color);
+        if (image.Empty())
+        {
+            image.Dispose();
+            throw new InvalidDataException($"OpenCV could not decode image bytes: {path}");
+        }
+        return image;
     }
 
     private static async Task RunFfmpegAsync(string ffmpeg, params string[] arguments)
