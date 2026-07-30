@@ -1,0 +1,97 @@
+<Window x:Class="AutoCutStudio.App.SocialAutomationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Social Media Automation — Highlight & Shorts"
+        Width="1120" Height="780" MinWidth="950" MinHeight="680"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="150"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="สร้าง Highlight และคลิปสั้นอัตโนมัติ" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="วิเคราะห์จาก Transcript จริง แสดงเหตุผลและช่วงเวลาให้ตรวจ ก่อนสร้าง Output ด้วย FFmpeg"
+                       Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="แพลตฟอร์ม / ขนาด" FontWeight="SemiBold"/>
+                <ComboBox x:Name="PresetComboBox" SelectedIndex="0" Margin="4" Padding="7" SelectionChanged="PresetComboBox_SelectionChanged">
+                    <ComboBoxItem Content="TikTok / Reels / Shorts — 1080×1920" Tag="vertical"/>
+                    <ComboBoxItem Content="YouTube Landscape — 1920×1080" Tag="youtube"/>
+                    <ComboBoxItem Content="Square Feed — 1080×1080" Tag="square"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Hook ตอนเริ่ม" FontWeight="SemiBold"/>
+                <TextBox x:Name="HookTextBox" Text="เรื่องนี้ต้องรู้" MaxLength="80"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="CTA ตอนจบ" FontWeight="SemiBold"/>
+                <TextBox x:Name="CtaTextBox" Text="ติดตามเพื่อดูเนื้อหาต่อไป" MaxLength="100"/>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock x:Name="AnalysisSummaryText" Text="กำลังอ่าน Transcript..." FontWeight="SemiBold"/>
+                    <TextBlock x:Name="PresetSummaryText" Foreground="{StaticResource MutedTextBrush}"/>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <CheckBox x:Name="BurnCaptionsCheckBox" Content="Burn Caption แบบเคลื่อนไหว" IsChecked="True" Margin="8"/>
+                    <Button Content="วิเคราะห์ใหม่" Click="Analyze_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <DataGrid x:Name="CandidatesGrid" Grid.Row="3" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="สร้าง" Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Width="65"/>
+                <DataGridTextColumn Header="อันดับ" Binding="{Binding Rank}" Width="65" IsReadOnly="True"/>
+                <DataGridTextColumn Header="คะแนน" Binding="{Binding Score, StringFormat=0.0}" Width="80" IsReadOnly="True"/>
+                <DataGridTextColumn Header="เริ่ม" Binding="{Binding StartSeconds, StringFormat=0.000}" Width="80" IsReadOnly="True"/>
+                <DataGridTextColumn Header="จบ" Binding="{Binding EndSeconds, StringFormat=0.000}" Width="80" IsReadOnly="True"/>
+                <DataGridTextColumn Header="ยาว" Binding="{Binding DurationSeconds, StringFormat=0.0}" Width="70" IsReadOnly="True"/>
+                <DataGridTextColumn Header="ข้อความ Preview" Binding="{Binding PreviewText}" Width="3*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="เหตุผล" Binding="{Binding ReasonSummary}" Width="2*" IsReadOnly="True"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <GroupBox Grid.Column="0" Header="รายละเอียดช่วงที่เลือก" Margin="0,0,8,0">
+                <TextBox x:Name="CandidateDetailsTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"/>
+            </GroupBox>
+            <GroupBox Grid.Column="1" Header="ข้อจำกัดที่แจ้งตรงไปตรงมา">
+                <TextBox IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         Text="• Highlight เป็นการจัดอันดับจาก Transcript ไม่ใช่การเข้าใจภาพแบบโมเดลมัลติโหมด&#x0a;• Auto Reframe รุ่นนี้เป็น Center Crop / Fit Pad ไม่ติดตามใบหน้า&#x0a;• Caption ใช้ Timestamp ระดับ Segment จาก Whisper&#x0a;• ระบบสร้างไม่เกิน 3 คลิปต่อครั้งเพื่อให้ตรวจสอบง่าย"/>
+            </GroupBox>
+        </Grid>
+
+        <DockPanel Grid.Row="5" Margin="0,10,0,0">
+            <Button DockPanel.Dock="Left" Content="▶ เล่นช่วงที่เลือก" Click="PlaySelected_Click"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="ยกเลิก" Click="Cancel_Click"/>
+                <Button x:Name="CreateButton" Content="สร้าง Job สำหรับคลิปที่เลือก" Click="Create_Click" Background="#047857"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>
