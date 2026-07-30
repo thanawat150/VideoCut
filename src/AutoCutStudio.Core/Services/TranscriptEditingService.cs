@@ -155,6 +155,6 @@ public sealed partial class TranscriptEditingService
             $"{totalHours:00}:{value.Minutes:00}:{value.Seconds:00},{value.Milliseconds:000}");
     }
 
-    [GeneratedRegex(@"[^\p{L}\p{N}]+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[^\p{L}\p{M}\p{N}]+", RegexOptions.CultureInvariant)]
     private static partial Regex PunctuationRegex();
 }
