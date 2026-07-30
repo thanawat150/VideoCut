@@ -4,12 +4,12 @@
 
 | Phase | Scope | Implementation |
 |---|---|---|
-| 1 | Core editor, project, timeline, worker, QA, portable, Pixel Office | Implemented |
-| 2 | Local speech-to-text, transcript, subtitle, silence/filler and text editing | Implemented |
-| 3 | Highlights, shorts, reframing, animated captions, Hook/CTA and presets | Implemented |
-| 4 | Noise, voice, color, stabilization, beat analysis and ducking | Implemented |
-| 5 | B-roll, face tracking, object detection, privacy blur, document video and local voiceover | Implemented |
-| 6 | Multicam, keyframes, nested sequences, plugins, providers, publishing and collaboration | Implemented |
+| 1 | Core editor, project, timeline, worker, QA, portable, Pixel Office | Implemented and validated |
+| 2 | Local speech-to-text, transcript, subtitle, silence/filler and text editing | Implemented and validated |
+| 3 | Highlights, shorts, reframing, animated captions, Hook/CTA and presets | Implemented and validated |
+| 4 | Noise, voice, color, stabilization, beat analysis and ducking | Implemented and validated |
+| 5 | B-roll, face tracking, object detection, privacy blur, document video and local voiceover | Implemented and validated |
+| 6 | Multicam, keyframes, nested sequences, plugins, providers, publishing and collaboration | Implemented and validated |
 
 ## Real processing paths
 
@@ -24,6 +24,8 @@
 
 ## Automated validation
 
+The final Phase 6 Windows CI run passed 36 of 36 tests and completed the final portable build, dependency verification, ZIP integrity check and artifact upload.
+
 Windows CI verifies:
 
 - Restore and Release build.
@@ -37,7 +39,7 @@ Windows CI verifies:
 - Template/document video and Windows voiceover.
 - Audio/visual enhancement and beat analysis.
 - Multicam, keyframe and nested-sequence rendering.
-- Plugin validation, delivery, social outbox and collaboration checksums.
+- Plugin validation, delivery, social outbox, provider contracts and collaboration checksums.
 - Thai paths and spaces in paths.
 - `asInvoker` manifest.
 - Self-contained portable App and Worker.
@@ -68,8 +70,8 @@ The provider framework is complete and honest about external dependencies:
 
 ## Remaining release sign-off
 
-The code and automated acceptance workflow can be marked complete only after the final Phase 6 CI run passes. Hardware-specific UI playback, installed voices, GPU/driver behavior and interactive usability still require a manual smoke test on the target Windows 10/11 machine before a production release is signed.
+Automated acceptance is complete. Hardware-specific UI playback, installed voices, GPU/driver behavior and interactive usability still require a manual smoke test on the target Windows 10/11 machine before a production release is signed.
 
 ## Current status
 
-`in_progress_until_final_phase6_ci_passes`
+`passed_automated_acceptance_all_six_phases`
