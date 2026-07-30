@@ -36,7 +36,8 @@ public sealed class OpenCvObjectDetector
         CancellationToken cancellationToken = default)
     {
         var availability = _visionTools.Locate();
-        if (string.IsNullOrWhiteSpace(availability.ObjectModelPath))
+        var modelPath = availability.ObjectModelPath;
+        if (string.IsNullOrWhiteSpace(modelPath))
             throw new InvalidOperationException(availability.Message);
         var working = Path.Combine(Path.GetTempPath(), "AutoCut-Objects", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(working);
@@ -45,15 +46,14 @@ public sealed class OpenCvObjectDetector
             var maximumFrames = Math.Min(90, Math.Max(1, (int)Math.Ceiling(durationSeconds / sampleIntervalSeconds)));
             var frames = await new FfmpegFrameSampler(_mediaTools).ExtractAsync(
                 inputPath, working, sampleIntervalSeconds, maximumFrames, cancellationToken);
-            using var net = CvDnn.ReadNetFromOnnx(availability.ObjectModelPath);
+            using var net = CvDnn.ReadNetFromOnnx(modelPath);
             net.SetPreferableBackend(Backend.OPENCV);
             net.SetPreferableTarget(Target.CPU);
             var detections = new List<ObjectDetection>();
             foreach (var frame in frames)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using var image = Cv2.ImRead(frame.Path, ImreadModes.Color);
-                if (image.Empty()) continue;
+                using var image = ReadImageUnicode(frame.Path);
                 detections.AddRange(DetectFrame(net, image, frame.TimeSeconds, confidenceThreshold));
             }
             return new ObjectAnalysisResult
@@ -63,10 +63,7 @@ public sealed class OpenCvObjectDetector
                 Detections = detections
             };
         }
-        finally
-        {
-            TryDeleteDirectory(working);
-        }
+        finally { TryDeleteDirectory(working); }
     }
 
     internal static IReadOnlyList<ObjectDetection> DetectFrame(
@@ -77,20 +74,14 @@ public sealed class OpenCvObjectDetector
     {
         const int inputSize = 640;
         using var blob = CvDnn.BlobFromImage(
-            image,
-            1.0 / 255.0,
-            new Size(inputSize, inputSize),
-            new Scalar(),
-            swapRB: true,
-            crop: false);
+            image, 1.0 / 255.0, new Size(inputSize, inputSize), new Scalar(), swapRB: true, crop: false);
         net.SetInput(blob);
         using var output = net.Forward();
-        if (output.Empty() || output.Total() < 84)
-            return [];
+        if (output.Empty() || output.Total() < 84) return [];
 
         var dimensions = Enumerable.Range(0, output.Dims).Select(output.Size).ToArray();
         var channelsFirst = dimensions.Length >= 3 && dimensions[^2] is 84 or 85;
-        var rows = channelsFirst ? dimensions[^2] : dimensions[^2];
+        var rows = dimensions[^2];
         using var matrix = output.Reshape(1, rows);
         var candidateCount = channelsFirst ? matrix.Cols : matrix.Rows;
         var featureCount = channelsFirst ? matrix.Rows : matrix.Cols;
@@ -104,7 +95,6 @@ public sealed class OpenCvObjectDetector
             float Value(int feature) => channelsFirst
                 ? matrix.At<float>(feature, index)
                 : matrix.At<float>(index, feature);
-
             var objectness = hasObjectness ? Math.Clamp(Value(4), 0, 1) : 1f;
             var bestClass = -1;
             var bestScore = 0f;
@@ -117,8 +107,7 @@ public sealed class OpenCvObjectDetector
                     bestClass = classIndex - classOffset;
                 }
             }
-            if (bestScore < confidenceThreshold || bestClass < 0 || bestClass >= CocoLabels.Length)
-                continue;
+            if (bestScore < confidenceThreshold || bestClass < 0 || bestClass >= CocoLabels.Length) continue;
 
             var centerX = Value(0) / inputSize;
             var centerY = Value(1) / inputSize;
@@ -140,7 +129,6 @@ public sealed class OpenCvObjectDetector
             selected.Add(candidate);
             if (selected.Count >= 100) break;
         }
-
         return selected.Select(candidate => new ObjectDetection
         {
             TimeSeconds = timeSeconds,
@@ -152,6 +140,17 @@ public sealed class OpenCvObjectDetector
             Width = candidate.Width,
             Height = candidate.Height
         }).ToList();
+    }
+
+    private static Mat ReadImageUnicode(string path)
+    {
+        var image = Cv2.ImDecode(File.ReadAllBytes(path), ImreadModes.Color);
+        if (image.Empty())
+        {
+            image.Dispose();
+            throw new InvalidDataException($"OpenCV อ่าน sampled frame ไม่สำเร็จ: {path}");
+        }
+        return image;
     }
 
     private static double IoU(Candidate left, Candidate right)
