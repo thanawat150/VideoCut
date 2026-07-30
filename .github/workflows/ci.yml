@@ -8,7 +8,7 @@ on:
 jobs:
   build-test-package:
     runs-on: windows-latest
-    timeout-minutes: 65
+    timeout-minutes: 85
 
     steps:
       - name: Checkout
@@ -40,8 +40,7 @@ jobs:
             "https://github.com/ggml-org/whisper.cpp/releases/download/$version/whisper-bin-x64.zip" `
             -o $archive
           Expand-Archive $archive $toolDownload -Force
-          $cli = Get-ChildItem $toolDownload -Filter "whisper-cli.exe" -File -Recurse |
-            Select-Object -First 1
+          $cli = Get-ChildItem $toolDownload -Filter "whisper-cli.exe" -File -Recurse | Select-Object -First 1
           if ($null -eq $cli) { throw "Official whisper.cpp archive did not contain whisper-cli.exe." }
           Copy-Item (Join-Path $cli.Directory.FullName "*") $toolDirectory -Recurse -Force
 
@@ -52,7 +51,6 @@ jobs:
           if (-not (Test-Path $model -PathType Leaf) -or (Get-Item $model).Length -lt 50MB) {
             throw "Whisper multilingual model is missing or incomplete."
           }
-
           curl.exe -L --fail --retry 3 `
             "https://raw.githubusercontent.com/ggml-org/whisper.cpp/$version/LICENSE" `
             -o (Join-Path $toolDirectory "LICENSE-whisper.cpp.txt")
@@ -60,20 +58,48 @@ jobs:
           $whisperCli = Join-Path $toolDirectory "whisper-cli.exe"
           & $whisperCli -h
           if ($LASTEXITCODE -ne 0) { throw "Downloaded whisper-cli.exe failed to start." }
-
           "AUTOCUT_WHISPER_CLI_PATH=$whisperCli" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "AUTOCUT_WHISPER_MODEL_PATH=$model" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "AUTOCUT_BUNDLE_WHISPER_DIR=$toolDirectory" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "AUTOCUT_BUNDLE_WHISPER_MODEL=$model" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Show tools
+      - name: Download official OpenCV Zoo models
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $directory = Join-Path $PWD ".tools\vision-models"
+          New-Item $directory -ItemType Directory -Force | Out-Null
+          $face = Join-Path $directory "face_detection_yunet_2023mar.onnx"
+          $object = Join-Path $directory "object_detection_yolox_2022nov.onnx"
+          curl.exe -L --fail --retry 3 --retry-delay 2 `
+            "https://media.githubusercontent.com/media/opencv/opencv_zoo/refs/heads/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx" `
+            -o $face
+          curl.exe -L --fail --retry 3 --retry-delay 2 `
+            "https://media.githubusercontent.com/media/opencv/opencv_zoo/refs/heads/main/models/object_detection_yolox/object_detection_yolox_2022nov.onnx" `
+            -o $object
+          curl.exe -L --fail --retry 3 `
+            "https://raw.githubusercontent.com/opencv/opencv_zoo/main/LICENSE" `
+            -o (Join-Path $directory "LICENSE-opencv-zoo.txt")
+          if (-not (Test-Path $face -PathType Leaf) -or (Get-Item $face).Length -lt 200KB) {
+            throw "YuNet model is missing or incomplete."
+          }
+          if (-not (Test-Path $object -PathType Leaf) -or (Get-Item $object).Length -lt 20MB) {
+            throw "YOLOX model is missing or incomplete."
+          }
+          "AUTOCUT_FACE_MODEL_PATH=$face" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_OBJECT_MODEL_PATH=$object" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_BUNDLE_FACE_MODEL=$face" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "AUTOCUT_BUNDLE_OBJECT_MODEL=$object" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Show tools and models
         shell: pwsh
         run: |
           dotnet --info
           ffmpeg -version
           ffprobe -version
           & $env:AUTOCUT_WHISPER_CLI_PATH -h
-          Get-Item $env:AUTOCUT_WHISPER_MODEL_PATH | Format-List FullName,Length
+          Get-Item $env:AUTOCUT_WHISPER_MODEL_PATH,$env:AUTOCUT_FACE_MODEL_PATH,$env:AUTOCUT_OBJECT_MODEL_PATH |
+            Format-Table FullName,Length
 
       - name: Restore
         run: dotnet restore AutoCutStudio.sln
@@ -81,7 +107,7 @@ jobs:
       - name: Build
         run: dotnet build AutoCutStudio.sln -c Release --no-restore
 
-      - name: Test with real media and real Whisper
+      - name: Test with real media, Whisper and OpenCV models
         run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=autocut-tests.trx"
 
       - name: Verify asInvoker manifest
@@ -92,7 +118,7 @@ jobs:
             throw "Application manifest is not asInvoker."
           }
 
-      - name: Build portable artifact with FFmpeg and Whisper
+      - name: Build portable artifact with FFmpeg Whisper and vision models
         shell: pwsh
         run: ./scripts/build-portable.ps1
 
@@ -100,6 +126,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
           $zip = Resolve-Path "artifacts/AutoCutStudio-win-x64.zip"
           $verifyRoot = Join-Path $env:RUNNER_TEMP "autocut-portable-verify"
           Remove-Item $verifyRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -111,20 +138,21 @@ jobs:
           $ffprobe = Join-Path $verifyRoot "tools\ffmpeg\ffprobe.exe"
           $whisper = Join-Path $verifyRoot "tools\whisper\whisper-cli.exe"
           $whisperModel = Join-Path $verifyRoot "models\whisper\ggml-base-q5_1.bin"
+          $faceModel = Join-Path $verifyRoot "models\opencv\face_detection_yunet_2023mar.onnx"
+          $objectModel = Join-Path $verifyRoot "models\opencv\object_detection_yolox_2022nov.onnx"
           $ffmpegManifest = Join-Path $verifyRoot "third_party\ffmpeg\bundle-manifest.json"
           $whisperManifest = Join-Path $verifyRoot "third_party\whisper.cpp\bundle-manifest.json"
+          $visionManifest = Join-Path $verifyRoot "third_party\opencv-zoo\bundle-manifest.json"
 
           foreach ($required in @(
             $app, $worker, $ffmpeg, $ffprobe, $whisper, $whisperModel,
-            $ffmpegManifest, $whisperManifest
+            $faceModel, $objectModel, $ffmpegManifest, $whisperManifest, $visionManifest
           )) {
-            if (-not (Test-Path $required -PathType Leaf)) {
-              throw "Required portable file is missing: $required"
-            }
+            if (-not (Test-Path $required -PathType Leaf)) { throw "Required portable file is missing: $required" }
           }
-          if ((Get-Item $whisperModel).Length -lt 50MB) {
-            throw "Bundled Whisper model is unexpectedly small."
-          }
+          if ((Get-Item $whisperModel).Length -lt 50MB) { throw "Bundled Whisper model is unexpectedly small." }
+          if ((Get-Item $faceModel).Length -lt 200KB) { throw "Bundled YuNet model is unexpectedly small." }
+          if ((Get-Item $objectModel).Length -lt 20MB) { throw "Bundled YOLOX model is unexpectedly small." }
 
           & $ffmpeg -version
           if ($LASTEXITCODE -ne 0) { throw "Bundled ffmpeg.exe failed to start." }
@@ -134,12 +162,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Bundled whisper-cli.exe failed to start." }
 
           $doctorOutput = & $worker --doctor
-          if ($LASTEXITCODE -ne 0) {
-            throw "Portable worker dependency doctor failed: $doctorOutput"
-          }
+          if ($LASTEXITCODE -ne 0) { throw "Portable worker dependency doctor failed: $doctorOutput" }
           $doctor = $doctorOutput | ConvertFrom-Json
           if (-not $doctor.ready -or $doctor.status -ne "ready") {
             throw "Portable ToolLocator did not detect bundled FFmpeg: $doctorOutput"
+          }
+          if (-not $doctor.face_model_ready -or -not $doctor.object_model_ready) {
+            throw "Portable worker did not detect bundled vision models: $doctorOutput"
           }
 
           $testDirectory = Join-Path $verifyRoot "ทดสอบ path มีช่องว่าง"
@@ -152,7 +181,6 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testMedia -PathType Leaf)) {
             throw "Bundled FFmpeg could not create real test media."
           }
-
           $probeJson = & $ffprobe -v error -show_entries stream=codec_type -of json $testMedia
           if ($LASTEXITCODE -ne 0) { throw "Bundled FFprobe could not inspect test media." }
           $probe = $probeJson | ConvertFrom-Json
@@ -168,24 +196,17 @@ jobs:
             $voice.SetOutputToWaveFile($speechWav)
             $voice.Speak("Hello. This is the Auto Cut Studio local transcription smoke test.")
           }
-          finally {
-            $voice.Dispose()
-          }
-          if (-not (Test-Path $speechWav -PathType Leaf)) {
-            throw "Windows SAPI did not create speech test media."
-          }
+          finally { $voice.Dispose() }
+          if (-not (Test-Path $speechWav -PathType Leaf)) { throw "Windows SAPI did not create speech test media." }
 
           $transcriptBase = Join-Path $testDirectory "portable transcript"
-          $whisperExit = -1
           Push-Location $testDirectory
           try {
             & $whisper -m $whisperModel -f "generated local speech.wav" -l en -t 2 -ng `
               -ojf -osrt -otxt -of "portable transcript"
             $whisperExit = $LASTEXITCODE
           }
-          finally {
-            Pop-Location
-          }
+          finally { Pop-Location }
           if ($whisperExit -ne 0) { throw "Bundled Whisper transcription smoke test failed." }
           foreach ($output in @("$transcriptBase.json", "$transcriptBase.srt", "$transcriptBase.txt")) {
             if (-not (Test-Path $output -PathType Leaf) -or (Get-Item $output).Length -eq 0) {
@@ -209,7 +230,7 @@ jobs:
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoCutStudio-win-x64-phase2
+          name: AutoCutStudio-win-x64-phase5
           path: |
             artifacts/AutoCutStudio-win-x64.zip
             artifacts/AutoCutStudio-win-x64.zip.sha256
