@@ -104,8 +104,7 @@ public sealed class FfmpegTemplateVideoProcessor : IVideoProcessor
         if (process.ExitCode != 0 || !progressEnded || !File.Exists(partial) || new FileInfo(partial).Length == 0)
         {
             TryDelete(partial);
-            throw new InvalidOperationException(
-                $"FFmpeg Template Video ล้มเหลว (exit {process.ExitCode}): {Tail(stderr, 20)}");
+            throw new InvalidOperationException($"FFmpeg Template Video ล้มเหลว (exit {process.ExitCode}): {Tail(stderr, 20)}");
         }
         File.Move(partial, output, false);
         var scriptAfter = new FileInfo(recipe.ScriptPath);
@@ -162,11 +161,13 @@ public sealed class FfmpegTemplateVideoProcessor : IVideoProcessor
             "ocean_blue" => "0x082F49",
             _ => "0x0F172A"
         };
+        var width = ClampEven(recipe.Width, 320, 3840);
+        var height = ClampEven(recipe.Height, 180, 3840);
         var arguments = new List<string>
         {
             "-hide_banner", "-y",
             "-f", "lavfi", "-i",
-            $"color=c={background}:s={Math.Clamp(recipe.Width, 320, 3840)}x{Math.Clamp(recipe.Height, 240, 3840)}:r={Math.Clamp(recipe.FrameRate, 15, 60)}:d={duration}"
+            $"color=c={background}:s={width}x{height}:r={Math.Clamp(recipe.FrameRate, 15, 60)}:d={duration}"
         };
         if (wrapper.VoiceoverPath is not null)
             arguments.AddRange(["-i", wrapper.VoiceoverPath]);
@@ -181,6 +182,12 @@ public sealed class FfmpegTemplateVideoProcessor : IVideoProcessor
             "-movflags", "+faststart", "-progress", "pipe:1", "-nostats", output
         ]);
         return arguments;
+    }
+
+    private static int ClampEven(int value, int minimum, int maximum)
+    {
+        var clamped = Math.Clamp(value, minimum, maximum);
+        return clamped % 2 == 0 ? clamped : clamped - 1;
     }
 
     private static void ValidateLocalRecipe(TemplateVideoJobRecipe recipe, string jobDirectory)
