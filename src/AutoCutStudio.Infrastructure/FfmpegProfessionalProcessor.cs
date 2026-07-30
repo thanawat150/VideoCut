@@ -227,6 +227,9 @@ public sealed class FfmpegProfessionalProcessor : IVideoProcessor
         var arguments = BaseInputs([job.InputPath]);
         var graph = new StringBuilder();
         var intervalCount = frames.Count - 1;
+        var outputWidth = ClampWidth(recipe.OutputWidth);
+        var outputHeight = ClampHeight(recipe.OutputHeight);
+        var outputFrameRate = ClampFps(recipe.FrameRate);
         for (var index = 0; index < intervalCount; index++)
         {
             var left = frames[index];
@@ -237,9 +240,10 @@ public sealed class FfmpegProfessionalProcessor : IVideoProcessor
             var focusX = $"({F(left.FocusX)}+({F(right.FocusX - left.FocusX)})*{progress})";
             var focusY = $"({F(left.FocusY)}+({F(right.FocusY - left.FocusY)})*{progress})";
             graph.Append($"[0:v:0]trim=start={F(left.TimeSeconds)}:end={F(right.TimeSeconds)},setpts=PTS-STARTPTS,");
-            graph.Append($"crop=w='max(2,trunc(iw/{zoom}/2)*2)':h='max(2,trunc(ih/{zoom}/2)*2)':");
-            graph.Append($"x='max(0,min(iw-out_w,(iw-out_w)*{focusX}))':y='max(0,min(ih-out_h,(ih-out_h)*{focusY}))':eval=frame,");
-            graph.Append($"scale={ClampWidth(recipe.OutputWidth)}:{ClampHeight(recipe.OutputHeight)}:flags=lanczos,fps={ClampFps(recipe.FrameRate)},format=yuv420p[v{index}];");
+            graph.Append($"scale={outputWidth}:{outputHeight}:force_original_aspect_ratio=increase,crop={outputWidth}:{outputHeight},setsar=1,");
+            graph.Append($"scale=w='max({outputWidth},trunc({outputWidth}*{zoom}/2)*2)':h='max({outputHeight},trunc({outputHeight}*{zoom}/2)*2)':eval=frame,");
+            graph.Append($"crop=w={outputWidth}:h={outputHeight}:x='max(0,min(iw-out_w,(iw-out_w)*{focusX}))':y='max(0,min(ih-out_h,(ih-out_h)*{focusY}))',");
+            graph.Append($"fps={outputFrameRate},format=yuv420p[v{index}];");
             if (job.ExpectedInputHasAudio)
             {
                 var gain = $"({F(left.AudioGain)}+({F(right.AudioGain - left.AudioGain)})*{progress})";
