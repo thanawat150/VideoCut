@@ -22,22 +22,22 @@ public partial class MainWindow
         CommandTextBox.IsReadOnly = false;
         CommandTextBox.Text = "ตัดช่วงเงียบออก";
         CommandTextBox.ToolTip =
-            "รองรับคำสั่งตัดหรือลบช่วงเงียบในรุ่นนี้ กด Enter หรือปุ่มวิเคราะห์และตัดอัตโนมัติ";
+            "รองรับตัดช่วงเงียบ ถอดเสียง สร้าง Subtitle และตรวจ Filler เดี่ยว กด Enter เพื่อเริ่ม";
         CommandTextBox.KeyDown += AutomaticCommandTextBox_KeyDown;
 
         if (CommandTextBox.Parent is DockPanel commandPanel)
         {
             var automaticButton = new Button
             {
-                Content = "วิเคราะห์และตัดอัตโนมัติ",
+                Content = "ทำตามคำสั่งอัตโนมัติ",
                 Background = System.Windows.Media.Brushes.Teal,
-                ToolTip = "ตรวจช่วงเงียบด้วย FFmpeg สร้างแผนให้ตรวจสอบ แล้วเลือกใช้หรือ Export"
+                ToolTip = "วิเคราะห์คำสั่งแล้วเปิด Workflow จริงที่รองรับ"
             };
             automaticButton.Click += AutomaticEditButton_Click;
             commandPanel.Children.Add(automaticButton);
         }
 
-        StatusBarText.Text = "Automatic Editing พร้อมใช้งาน: รองรับการตัดช่วงเงียบจากเสียงจริง";
+        StatusBarText.Text = "Automatic Editing พร้อม: ช่วงเงียบ, Whisper Transcript, SRT และ Filler เดี่ยว";
     }
 
     private async void AutomaticCommandTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -68,17 +68,6 @@ public partial class MainWindow
             return;
         }
 
-        RefreshToolStatus();
-        if (!_toolAvailability.IsReady)
-        {
-            MessageBox.Show(
-                _toolAvailability.Message,
-                "Dependency ไม่พร้อม",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
-
         var parsed = new AutomaticCommandParser().Parse(CommandTextBox.Text);
         if (!parsed.IsSupported)
         {
@@ -87,6 +76,35 @@ public partial class MainWindow
                 "คำสั่งยังไม่รองรับ",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+            return;
+        }
+
+        if (parsed.Action is AutomaticEditActions.TranscribeSpeech or
+            AutomaticEditActions.CreateSubtitles or
+            AutomaticEditActions.RemoveFillerWords)
+        {
+            await OpenSpeechEditingAsync(parsed.Action, parsed.OriginalCommand);
+            return;
+        }
+
+        await OpenSilenceEditingAsync(parsed.OriginalCommand);
+    }
+
+    private async Task OpenSilenceEditingAsync(string command)
+    {
+        if (_project is null || _activeMedia is null)
+        {
+            return;
+        }
+
+        RefreshToolStatus();
+        if (!_toolAvailability.IsReady)
+        {
+            MessageBox.Show(
+                _toolAvailability.Message,
+                "Dependency ไม่พร้อม",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -100,7 +118,7 @@ public partial class MainWindow
         {
             Owner = this
         };
-        dialog.CommandTextBox.Text = CommandTextBox.Text;
+        dialog.CommandTextBox.Text = command;
 
         var accepted = dialog.ShowDialog() == true;
         if (!accepted || dialog.SelectedPlan is not { IsActionable: true } plan)

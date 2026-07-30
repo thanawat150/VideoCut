@@ -3,6 +3,9 @@ namespace AutoCutStudio.Core.Models;
 public static class AutomaticEditActions
 {
     public const string RemoveSilence = "remove_silence";
+    public const string TranscribeSpeech = "transcribe_speech";
+    public const string CreateSubtitles = "create_subtitles";
+    public const string RemoveFillerWords = "remove_filler_words";
 }
 
 public sealed record AutomaticEditRequest
