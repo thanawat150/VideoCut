@@ -27,20 +27,13 @@ public sealed class OpenCvFaceTracker
         if (string.IsNullOrWhiteSpace(availability.FaceModelPath))
             throw new InvalidOperationException(availability.Message);
 
-        var workingDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "AutoCut-FaceTracking",
-            Guid.NewGuid().ToString("N"));
+        var workingDirectory = Path.Combine(Path.GetTempPath(), "AutoCut-FaceTracking", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(workingDirectory);
         try
         {
             var maximumFrames = Math.Min(300, Math.Max(1, (int)Math.Ceiling(durationSeconds / sampleIntervalSeconds)));
             var frames = await new FfmpegFrameSampler(_mediaTools).ExtractAsync(
-                inputPath,
-                workingDirectory,
-                sampleIntervalSeconds,
-                maximumFrames,
-                cancellationToken);
+                inputPath, workingDirectory, sampleIntervalSeconds, maximumFrames, cancellationToken);
             var allFaces = new List<DetectedFace>();
 
             foreach (var frame in frames)
@@ -48,14 +41,8 @@ public sealed class OpenCvFaceTracker
                 cancellationToken.ThrowIfCancellationRequested();
                 using var image = Cv2.ImRead(frame.Path, ImreadModes.Color);
                 if (image.Empty()) continue;
-
                 using var detector = FaceDetectorYN.Create(
-                    availability.FaceModelPath,
-                    string.Empty,
-                    image.Size(),
-                    confidenceThreshold,
-                    0.3f,
-                    5000);
+                    availability.FaceModelPath, string.Empty, image.Size(), confidenceThreshold, 0.3f, 5000);
                 using var faces = new Mat();
                 detector.Detect(image, faces);
                 var rowCount = faces.Rows;
@@ -89,15 +76,10 @@ public sealed class OpenCvFaceTracker
                 Tracks = BuildTracks(allFaces, sampleIntervalSeconds)
             };
         }
-        finally
-        {
-            TryDeleteDirectory(workingDirectory);
-        }
+        finally { TryDeleteDirectory(workingDirectory); }
     }
 
-    internal static List<FaceTrack> BuildTracks(
-        IReadOnlyList<DetectedFace> faces,
-        double sampleIntervalSeconds)
+    public static List<FaceTrack> BuildTracks(IReadOnlyList<DetectedFace> faces, double sampleIntervalSeconds)
     {
         var trackBuilders = new List<TrackBuilder>();
         foreach (var timeGroup in faces.GroupBy(face => face.TimeSeconds).OrderBy(group => group.Key))
@@ -113,13 +95,8 @@ public sealed class OpenCvFaceTracker
                     var last = candidate.Keyframes[^1];
                     if (face.TimeSeconds - last.TimeSeconds > sampleIntervalSeconds * 2.2) continue;
                     var iou = IoU(last.X, last.Y, last.Width, last.Height, face.X, face.Y, face.Width, face.Height);
-                    if (iou > bestIou)
-                    {
-                        bestIou = iou;
-                        best = candidate;
-                    }
+                    if (iou > bestIou) { bestIou = iou; best = candidate; }
                 }
-
                 if (best is null || bestIou < 0.22)
                 {
                     best = new TrackBuilder();
@@ -137,7 +114,6 @@ public sealed class OpenCvFaceTracker
                 assignedTracks.Add(best.Id);
             }
         }
-
         return trackBuilders
             .Where(builder => builder.Keyframes.Count >= 2)
             .OrderByDescending(builder => builder.Keyframes.Count)
@@ -148,13 +124,10 @@ public sealed class OpenCvFaceTracker
                 DisplayIndex = index + 1,
                 Keyframes = builder.Keyframes,
                 IsSelected = index < 5
-            })
-            .ToList();
+            }).ToList();
     }
 
-    private static double IoU(
-        double x1, double y1, double w1, double h1,
-        double x2, double y2, double w2, double h2)
+    private static double IoU(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2)
     {
         var left = Math.Max(x1, x2);
         var top = Math.Max(y1, y2);
@@ -165,12 +138,7 @@ public sealed class OpenCvFaceTracker
         return union <= 0 ? 0 : intersection / union;
     }
 
-    private static void TryDeleteDirectory(string path)
-    {
-        try { if (Directory.Exists(path)) Directory.Delete(path, true); }
-        catch { }
-    }
-
+    private static void TryDeleteDirectory(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { } }
     private sealed class TrackBuilder
     {
         public Guid Id { get; } = Guid.NewGuid();
