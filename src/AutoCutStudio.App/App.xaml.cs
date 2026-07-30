@@ -22,6 +22,7 @@ public partial class App : Application
                 {
                     window.EnableAutomaticEditingUi();
                     window.EnableSpeechEditingUi();
+                    window.EnableSocialAutomationUi();
                 }
             }));
     }

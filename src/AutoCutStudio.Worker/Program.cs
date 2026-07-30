@@ -23,7 +23,6 @@ internal static class WorkerProgram
 
         var jobs = new JobRepository();
         JobDocument job;
-
         try
         {
             job = await jobs.ReadJobAsync(jobPath);
@@ -61,7 +60,6 @@ internal static class WorkerProgram
                 FailureMessage = null
             };
             await jobs.WriteJobAsync(job);
-
             await EmitAsync(new AgentEvent
             {
                 EventType = "job.started",
@@ -71,16 +69,16 @@ internal static class WorkerProgram
                 Action = "prepare_timeline",
                 Status = AgentStatuses.Editing,
                 Progress = 0,
-                Message = "Video Editor ตรวจ Timeline และเตรียมงาน",
+                Message = $"Video Editor ตรวจ {job.JobType} และเตรียมงาน",
                 InputPath = job.InputPath,
                 OutputPath = job.OutputPath
             });
 
             await jobs.AppendRunLogAsync(job, $"Worker PID: {Environment.ProcessId}");
+            await jobs.AppendRunLogAsync(job, $"Job Type: {job.JobType}");
             await jobs.AppendRunLogAsync(job, $"Input: {job.InputPath}");
             await jobs.AppendRunLogAsync(job, $"Output: {job.OutputPath}");
             await jobs.AppendRunLogAsync(job, $"Segments: {job.Segments.Count}");
-
             await EmitAsync(new AgentEvent
             {
                 EventType = "agent.completed",
@@ -90,24 +88,22 @@ internal static class WorkerProgram
                 Action = "prepare_timeline",
                 Status = AgentStatuses.Completed,
                 Progress = 100,
-                Message = "Timeline พร้อมส่งให้ Render Agent",
+                Message = "Timeline และ Render Recipe พร้อมส่งให้ Render Agent",
                 InputPath = job.InputPath,
                 OutputPath = job.OutputPath
             });
 
             job = job with { Status = JobStatuses.Exporting };
             await jobs.WriteJobAsync(job);
-
-            var processor = new FfmpegTimelineProcessor(tools);
-            var processingReport = await processor.ProcessAsync(
-                job,
-                EmitAsync,
-                UpdateProgressAsync);
-
+            AutoCutStudio.Core.Interfaces.IVideoProcessor processor = job.JobType switch
+            {
+                JobTypes.SocialClipExport => new FfmpegSocialProcessor(tools),
+                _ => new FfmpegTimelineProcessor(tools)
+            };
+            var processingReport = await processor.ProcessAsync(job, EmitAsync, UpdateProgressAsync);
             var jobDirectory = jobs.GetJobDirectory(job);
             await WriteJsonAsync(Path.Combine(jobDirectory, "processing_report.json"), processingReport);
             await jobs.AppendRunLogAsync(job, processingReport.SafeCommandDisplay);
-
             if (processingReport.SourceWasModified)
             {
                 throw new InvalidDataException("Source file metadata changed during processing.");
@@ -131,17 +127,13 @@ internal static class WorkerProgram
             var qualityControl = new OutputQualityControl(probe);
             var (qaReport, manifest) = await qualityControl.ValidateAsync(job);
             await WriteJsonAsync(Path.Combine(jobDirectory, "qa_report.json"), qaReport);
-
             if (!qaReport.Passed || manifest is null)
             {
                 throw new InvalidDataException(
-                    qaReport.Errors.Count == 0
-                        ? "Output QA failed."
-                        : string.Join("; ", qaReport.Errors));
+                    qaReport.Errors.Count == 0 ? "Output QA failed." : string.Join("; ", qaReport.Errors));
             }
 
             await WriteJsonAsync(Path.Combine(jobDirectory, "manifest.json"), manifest);
-
             await EmitAsync(new AgentEvent
             {
                 EventType = "qa.completed",
@@ -161,9 +153,7 @@ internal static class WorkerProgram
 
             job = job with
             {
-                Status = qaReport.Warnings.Count == 0
-                    ? JobStatuses.Completed
-                    : JobStatuses.CompletedWithWarnings,
+                Status = qaReport.Warnings.Count == 0 ? JobStatuses.Completed : JobStatuses.CompletedWithWarnings,
                 WorkerProcessId = null
             };
             await jobs.WriteJobAsync(job);
@@ -177,7 +167,6 @@ internal static class WorkerProgram
                 Message = "Export และ QA สำเร็จ",
                 WorkerProcessId = null
             });
-
             await EmitAsync(new AgentEvent
             {
                 EventType = "render.completed",
@@ -193,10 +182,10 @@ internal static class WorkerProgram
                 Metadata = new Dictionary<string, string>
                 {
                     ["sha256"] = manifest.Sha256,
-                    ["file_size_bytes"] = manifest.FileSizeBytes.ToString()
+                    ["file_size_bytes"] = manifest.FileSizeBytes.ToString(),
+                    ["job_type"] = job.JobType
                 }
             });
-
             return 0;
         }
         catch (JobCancelledException exception)
@@ -224,7 +213,7 @@ internal static class WorkerProgram
                 ProjectId = job.ProjectId,
                 JobId = job.JobId,
                 AgentId = AgentIds.Render,
-                Action = "export_timeline",
+                Action = "export_job",
                 Status = AgentStatuses.Cancelled,
                 Message = "ผู้ใช้ยกเลิกงาน",
                 InputPath = job.InputPath,
@@ -241,7 +230,6 @@ internal static class WorkerProgram
                 WorkerProcessId = null,
                 FailureMessage = exception.Message
             };
-
             try
             {
                 await jobs.WriteJobAsync(job);
@@ -261,7 +249,7 @@ internal static class WorkerProgram
                     ProjectId = job.ProjectId,
                     JobId = job.JobId,
                     AgentId = AgentIds.Render,
-                    Action = "timeline_export",
+                    Action = job.JobType,
                     Status = AgentStatuses.Error,
                     Message = exception.Message,
                     InputPath = job.InputPath,
@@ -292,7 +280,6 @@ internal static class WorkerProgram
             message = availability.Message,
             base_directory = AppContext.BaseDirectory
         };
-
         Console.WriteLine(JsonSerializer.Serialize(report, JsonDefaults.Options));
         return availability.IsReady ? 0 : 69;
     }
@@ -306,15 +293,12 @@ internal static class WorkerProgram
                 return Path.GetFullPath(args[index + 1]);
             }
         }
-
         return null;
     }
 
     private static Task WriteJsonAsync<T>(string path, T value)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        return File.WriteAllTextAsync(
-            path,
-            JsonSerializer.Serialize(value, JsonDefaults.Options));
+        return File.WriteAllTextAsync(path, JsonSerializer.Serialize(value, JsonDefaults.Options));
     }
 }
