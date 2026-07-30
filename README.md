@@ -1,45 +1,81 @@
 # AutoCut Studio
 
-AutoCut Studio is a Windows-first, local-first desktop video editor whose **Pixel Agents only change state when real backend jobs emit events**.
+AutoCut Studio is a Windows-first, local-first desktop video editor. Its Pixel Agents change state only when real backend events are emitted by analysis, editing, rendering or QA work.
 
-This repository currently implements the **Phase 1 core workflow**:
+## Implemented product scope
 
-1. Create or open a project.
-2. Import an MP4 file without modifying it.
-3. Inspect the media with FFprobe.
-4. Preview the source with the Windows media stack.
-5. Set In/Out points, split timeline segments, delete segments, and undo/redo timeline edits.
-6. Create a persistent timeline export job.
-7. Run FFmpeg in a separate worker process.
-8. Report real FFmpeg progress through `-progress pipe:1`.
-9. Validate the output with FFprobe and SHA-256.
-10. Store project, job, progress, logs, events, reports, and output manifests.
-11. Open the exported file.
+### Phase 1 — Core Working Product
 
-## Current status
+- Project create/open and auto-save
+- Read-only MP4 import and FFprobe metadata
+- Preview player, In/Out, split, trim, delete and undo/redo
+- Persistent Job Queue and separate Worker process
+- Real FFmpeg progress, pause, resume and cancel
+- FFprobe QA, SHA-256 manifest and versioned outputs
+- Pixel Office states connected to the real Agent Event Bus
+- Self-contained Windows portable build with `asInvoker` manifest
 
-Status: `passed_with_warnings`
+### Phase 2 — Speech Editing
 
-Windows CI compiles the application, runs unit and real-media integration tests, verifies the `asInvoker` manifest, builds the self-contained portable package, expands the ZIP, starts the bundled FFmpeg/FFprobe binaries, runs the packaged worker dependency doctor, creates test media in a Thai path containing spaces, and reads every ZIP entry to detect corruption.
+- Bundled local `whisper.cpp` and multilingual model
+- Thai/English/auto transcription
+- Editable transcript, search, playback by segment and SRT export
+- Silence detection/removal and conservative filler-only segment review
+- Text-based editing converted into a non-destructive timeline
 
-A manual end-to-end UI smoke test on the user's Windows 10/11 machine is still required before calling the phase fully accepted.
+### Phase 3 — Social Media Automation
 
-See:
+- Transcript-ranked highlight candidates with visible scores and reasons
+- Reviewed batch generation of short clips
+- TikTok/Reels/Shorts, landscape and square presets
+- Center crop or fit/pad reframing
+- Animated ASS captions, Hook and CTA overlays
 
-- [`docs/PHASE1_ARCHITECTURE.md`](docs/PHASE1_ARCHITECTURE.md)
-- [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md)
+### Phase 4 — Audio and Visual Enhancement
+
+- Noise reduction and voice enhancement presets
+- Color correction presets
+- Basic FFmpeg stabilization
+- PCM-based beat analysis
+- Local music mixing with sidechain ducking
+
+### Phase 5 — Advanced Local AI
+
+- Bundled OpenCV Zoo YuNet face detection
+- Temporal face tracks and review-gated Privacy Blur
+- Bundled OpenCV Zoo YOLOX object detection
+- B-roll suggestions from transcript, detected objects and local assets
+- TXT, Markdown, DOCX and PDF ingestion
+- Editable template-based text/document-to-video
+- Windows local voiceover without voice cloning
+
+### Phase 6 — Professional Workflow
+
+- Multicam switch-plan rendering
+- Linear zoom/focus/audio keyframes
+- Reusable nested sequences
+- Safe declarative export-preset plugins; external DLL code is not loaded
+- Real delivery to local, network or desktop-synced cloud folders
+- Reviewable social publishing outbox packages
+- Collaboration ZIP export/import with SHA-256 and zip-slip protection
+
+## Important provider limitation
+
+Cloud and social provider interfaces report their actual configuration state. The built-in product performs real file delivery to local or synced folders and creates inspectable social outbox packages. It does **not** claim a YouTube, TikTok, Instagram or Facebook upload succeeded without an authenticated provider plugin, account approval and the relevant external API permission.
 
 ## Technology stack
 
-- .NET 8
-- WPF
-- FFmpeg / FFprobe as bundled local tools in CI portable builds
-- Separate .NET worker process
-- JSON project and job persistence
-- xUnit integration tests
-- GitHub Actions on `windows-latest`
+- .NET 8 and WPF
+- Separate .NET Worker process
+- FFmpeg and FFprobe
+- `whisper.cpp`
+- OpenCvSharp with OpenCV Zoo YuNet and YOLOX ONNX models
+- PdfPig and direct DOCX XML parsing
+- JSON project/job persistence
+- xUnit real-media integration tests
+- GitHub Actions on Windows
 
-## Build
+## Build and test
 
 ```powershell
 dotnet restore AutoCutStudio.sln
@@ -47,28 +83,35 @@ dotnet build AutoCutStudio.sln -c Release
 dotnet test AutoCutStudio.sln -c Release
 ```
 
-Portable packaging requires real `ffmpeg.exe` and `ffprobe.exe` so the script cannot accidentally produce a package with a non-working Render function:
+## Portable package
+
+The packaging script refuses to silently create a full package when FFmpeg, Whisper or required computer-vision models are missing:
 
 ```powershell
-pwsh ./scripts/build-portable.ps1 -FfmpegDirectory "C:\path\to\ffmpeg\bin"
+pwsh ./scripts/build-portable.ps1 `
+  -FfmpegDirectory "C:\path\to\ffmpeg\bin" `
+  -WhisperDirectory "C:\path\to\whisper" `
+  -WhisperModelPath "C:\path\to\ggml-base-q5_1.bin" `
+  -FaceModelPath "C:\path\to\face_detection_yunet_2023mar.onnx" `
+  -ObjectModelPath "C:\path\to\object_detection_yolox_2022nov.onnx"
 ```
 
-Alternatively, set `AUTOCUT_BUNDLE_FFMPEG_DIR` or install FFmpeg in a location the build script can resolve. The generated ZIP contains:
+CI downloads pinned dependencies from their official upstream repositories, creates the package and tests the tools and models from inside the expanded ZIP.
+
+The package contains at least:
 
 ```text
 AutoCutStudio.exe
 AutoCutStudio.Worker.exe
 tools/ffmpeg/ffmpeg.exe
 tools/ffmpeg/ffprobe.exe
-third_party/ffmpeg/bundle-manifest.json
+tools/whisper/whisper-cli.exe
+models/whisper/ggml-base-q5_1.bin
+models/opencv/face_detection_yunet_2023mar.onnx
+models/opencv/object_detection_yolox_2022nov.onnx
+plugins/official-youtube-1080p/plugin.json
+third_party/*/bundle-manifest.json
 ```
-
-The application resolves tools in this order:
-
-1. paths supplied through `AUTOCUT_FFMPEG_PATH` and `AUTOCUT_FFPROBE_PATH`,
-2. `tools/ffmpeg/` beside the application,
-3. beside the application executable,
-4. a directory in `PATH`.
 
 Dependency diagnostic command:
 
@@ -76,13 +119,17 @@ Dependency diagnostic command:
 ./AutoCutStudio.Worker.exe --doctor
 ```
 
-It returns exit code `0` only when the same `ToolLocator` used by real media jobs detects both bundled tools.
-
 ## Privacy and safety
 
-- Source media is opened read-only and is never overwritten.
-- Export names are versioned (`name.mp4`, `name_v2.mp4`, ...).
-- FFmpeg and FFprobe are launched with `ProcessStartInfo.ArgumentList`; user text is never concatenated into a shell command.
-- No cloud upload or API is used in Phase 1.
-- Partial output is written to a temporary file and moved to the final path only after FFmpeg succeeds.
-- Logs do not contain API keys because Phase 1 has no API provider.
+- Source media is never overwritten.
+- Output paths are versioned and partial files are promoted only after FFmpeg succeeds.
+- Tool arguments use `ProcessStartInfo.ArgumentList`; user text is not concatenated into a shell command.
+- Speech, face and object analysis run locally.
+- Privacy Blur is generated only from tracks selected by the user.
+- Plugins are declarative JSON presets and cannot execute arbitrary code.
+- Collaboration import validates paths, file sizes and SHA-256 values.
+- API secrets are not persisted in project files or logs.
+
+## Validation boundary
+
+Automated CI validates compile, tests, real media, real Whisper, model loading, rendering, QA, portable dependencies, Thai paths, spaces and ZIP integrity. A final manual UI smoke test on the target Windows 10/11 hardware remains the release sign-off step for hardware-specific playback, GPU drivers and installed Windows voices.
