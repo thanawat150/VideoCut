@@ -8,7 +8,7 @@ on:
 jobs:
   build-test-package:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -47,14 +47,84 @@ jobs:
             throw "Application manifest is not asInvoker."
           }
 
-      - name: Build portable artifact
+      - name: Build portable artifact with bundled FFmpeg
         shell: pwsh
         run: ./scripts/build-portable.ps1
+
+      - name: Verify portable ZIP and bundled dependencies
+        shell: pwsh
+        run: |
+          $zip = Resolve-Path "artifacts/AutoCutStudio-win-x64.zip"
+          $verifyRoot = Join-Path $env:RUNNER_TEMP "autocut-portable-verify"
+          Remove-Item $verifyRoot -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive $zip $verifyRoot -Force
+
+          $app = Join-Path $verifyRoot "AutoCutStudio.exe"
+          $worker = Join-Path $verifyRoot "AutoCutStudio.Worker.exe"
+          $ffmpeg = Join-Path $verifyRoot "tools\ffmpeg\ffmpeg.exe"
+          $ffprobe = Join-Path $verifyRoot "tools\ffmpeg\ffprobe.exe"
+          $bundleManifest = Join-Path $verifyRoot "third_party\ffmpeg\bundle-manifest.json"
+
+          foreach ($required in @($app, $worker, $ffmpeg, $ffprobe, $bundleManifest)) {
+            if (-not (Test-Path $required -PathType Leaf)) {
+              throw "Required portable file is missing: $required"
+            }
+          }
+
+          & $ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ffmpeg.exe failed to start." }
+          & $ffprobe -version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ffprobe.exe failed to start." }
+
+          $doctorOutput = & $worker --doctor
+          if ($LASTEXITCODE -ne 0) {
+            throw "Portable worker dependency doctor failed: $doctorOutput"
+          }
+          $doctor = $doctorOutput | ConvertFrom-Json
+          if (-not $doctor.ready -or $doctor.status -ne "ready") {
+            throw "Portable ToolLocator did not detect bundled FFmpeg: $doctorOutput"
+          }
+
+          $testDirectory = Join-Path $verifyRoot "ทดสอบ path มีช่องว่าง"
+          New-Item $testDirectory -ItemType Directory -Force | Out-Null
+          $testMedia = Join-Path $testDirectory "portable input.mp4"
+          & $ffmpeg -hide_banner -loglevel error -y `
+            -f lavfi -i "testsrc2=size=320x180:rate=25" `
+            -f lavfi -i "sine=frequency=440:sample_rate=48000" `
+            -t 1.5 -c:v libx264 -pix_fmt yuv420p -c:a aac $testMedia
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testMedia -PathType Leaf)) {
+            throw "Bundled FFmpeg could not create real test media."
+          }
+
+          $probeJson = & $ffprobe -v error -show_entries stream=codec_type -of json $testMedia
+          if ($LASTEXITCODE -ne 0) { throw "Bundled FFprobe could not inspect test media." }
+          $probe = $probeJson | ConvertFrom-Json
+          $types = @($probe.streams | ForEach-Object { $_.codec_type })
+          if ($types -notcontains "video" -or $types -notcontains "audio") {
+            throw "Portable test media is missing a video or audio stream."
+          }
+
+          $zipTest = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            foreach ($entry in $zipTest.Entries) {
+              $stream = $entry.Open()
+              try {
+                $buffer = New-Object byte[] 81920
+                while ($stream.Read($buffer, 0, $buffer.Length) -gt 0) { }
+              }
+              finally {
+                $stream.Dispose()
+              }
+            }
+          }
+          finally {
+            $zipTest.Dispose()
+          }
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AutoCutStudio-win-x64
+          name: AutoCutStudio-win-x64-bundled
           path: |
             artifacts/AutoCutStudio-win-x64.zip
             artifacts/AutoCutStudio-win-x64.zip.sha256
