@@ -47,6 +47,7 @@ public sealed record HighlightCandidate
     public double Score { get; init; }
     public string PreviewText { get; init; } = string.Empty;
     public List<string> Reasons { get; init; } = [];
+    public string ReasonSummary => string.Join("; ", Reasons);
     public bool IsSelected { get; set; }
 }
 
