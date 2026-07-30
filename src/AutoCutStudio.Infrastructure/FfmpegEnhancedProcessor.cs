@@ -18,6 +18,10 @@ public sealed class FfmpegEnhancedProcessor : IVideoProcessor
         Func<JobProgress, Task> update,
         CancellationToken cancellationToken = default)
     {
+        if (job.PrivacyBlurRecipe is not null)
+            return await new FfmpegPrivacyBlurProcessor(_tools).ProcessAsync(job, emit, update, cancellationToken);
+        if (job.TemplateVideoRecipe is not null)
+            return await new FfmpegTemplateVideoProcessor(_tools).ProcessAsync(job, emit, update, cancellationToken);
         if (job.RenderRecipe is null)
             throw new InvalidDataException("Enhancement job requires a render recipe.");
         var availability = _tools.Locate();
