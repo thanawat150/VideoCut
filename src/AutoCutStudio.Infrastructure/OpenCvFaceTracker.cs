@@ -39,14 +39,13 @@ public sealed class OpenCvFaceTracker
             foreach (var frame in frames)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using var image = Cv2.ImRead(frame.Path, ImreadModes.Color);
+                using var image = ReadImageUnicode(frame.Path);
                 if (image.Empty()) continue;
                 using var detector = FaceDetectorYN.Create(
                     availability.FaceModelPath, string.Empty, image.Size(), confidenceThreshold, 0.3f, 5000);
                 using var faces = new Mat();
                 detector.Detect(image, faces);
-                var rowCount = faces.Rows;
-                for (var row = 0; row < rowCount; row++)
+                for (var row = 0; row < faces.Rows; row++)
                 {
                     var score = faces.At<float>(row, 14);
                     if (score < confidenceThreshold) continue;
@@ -125,6 +124,17 @@ public sealed class OpenCvFaceTracker
                 Keyframes = builder.Keyframes,
                 IsSelected = index < 5
             }).ToList();
+    }
+
+    private static Mat ReadImageUnicode(string path)
+    {
+        var image = Cv2.ImDecode(File.ReadAllBytes(path), ImreadModes.Color);
+        if (image.Empty())
+        {
+            image.Dispose();
+            throw new InvalidDataException($"OpenCV อ่าน sampled frame ไม่สำเร็จ: {path}");
+        }
+        return image;
     }
 
     private static double IoU(double x1, double y1, double w1, double h1, double x2, double y2, double w2, double h2)
