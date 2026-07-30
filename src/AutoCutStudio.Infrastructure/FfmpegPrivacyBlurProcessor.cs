@@ -119,8 +119,7 @@ public sealed class FfmpegPrivacyBlurProcessor : IVideoProcessor
         if (process.ExitCode != 0 || !progressEnded || !File.Exists(partial) || new FileInfo(partial).Length == 0)
         {
             TryDelete(partial);
-            throw new InvalidOperationException(
-                $"FFmpeg Privacy Blur ล้มเหลว (exit {process.ExitCode}): {Tail(stderr, 20)}");
+            throw new InvalidOperationException($"FFmpeg Privacy Blur ล้มเหลว (exit {process.ExitCode}): {Tail(stderr, 20)}");
         }
 
         File.Move(partial, output, false);
@@ -166,7 +165,6 @@ public sealed class FfmpegPrivacyBlurProcessor : IVideoProcessor
 
     internal static IReadOnlyList<string> BuildArguments(JobDocument job, string input, string output)
     {
-        var recipe = job.PrivacyBlurRecipe!;
         var graph = BuildFilterGraph(job, out var finalLabel);
         var arguments = new List<string>
         {
@@ -218,13 +216,15 @@ public sealed class FfmpegPrivacyBlurProcessor : IVideoProcessor
             var cropSource = $"cropSource{index}";
             var blurred = $"blur{index}";
             var outputLabel = $"v{index}";
-            var xExpression = $"trunc(iw*{F(x)}/2)*2";
-            var yExpression = $"trunc(ih*{F(y)}/2)*2";
+            var cropXExpression = $"trunc(iw*{F(x)}/2)*2";
+            var cropYExpression = $"trunc(ih*{F(y)}/2)*2";
             var wExpression = $"max(2,trunc(iw*{F(width)}/2)*2)";
             var hExpression = $"max(2,trunc(ih*{F(height)}/2)*2)";
+            var overlayXExpression = $"trunc(main_w*{F(x)}/2)*2";
+            var overlayYExpression = $"trunc(main_h*{F(y)}/2)*2";
             filters.Add($"[{previous}]split=2[{baseLabel}][{cropSource}]");
-            filters.Add($"[{cropSource}]crop=w='{wExpression}':h='{hExpression}':x='{xExpression}':y='{yExpression}',boxblur=luma_radius={Math.Clamp(recipe.BlurStrength, 5, 40)}:luma_power=2[{blurred}]");
-            filters.Add($"[{baseLabel}][{blurred}]overlay=x='{xExpression}':y='{yExpression}':enable='between(t,{F(frame.TimeSeconds)},{F(end)})'[{outputLabel}]");
+            filters.Add($"[{cropSource}]crop=w='{wExpression}':h='{hExpression}':x='{cropXExpression}':y='{cropYExpression}',boxblur=luma_radius={Math.Clamp(recipe.BlurStrength, 5, 40)}:luma_power=2[{blurred}]");
+            filters.Add($"[{baseLabel}][{blurred}]overlay=x='{overlayXExpression}':y='{overlayYExpression}':enable='between(t,{F(frame.TimeSeconds)},{F(end)})'[{outputLabel}]");
             previous = outputLabel;
         }
         finalLabel = $"[{previous}]";
