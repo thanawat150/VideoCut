@@ -1,0 +1,142 @@
+<Window x:Class="AutoCutStudio.App.ProfessionalToolsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Professional Tools" Width="1120" Height="800"
+        MinWidth="940" MinHeight="680" WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Professional Workflow" FontSize="26" FontWeight="Bold"/>
+            <TextBlock Text="Multicam, Keyframes, Nested Sequence, Declarative Plugins, Delivery, Social Outbox และ Team Collaboration"
+                       Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <TabControl Grid.Row="1" x:Name="ProfessionalTabs">
+            <TabItem Header="Multicam">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="170"/>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <WrapPanel>
+                        <Button Content="เพิ่มไฟล์กล้อง" Click="AddAngles_Click"/>
+                        <Button Content="ล้างกล้องเสริม" Click="ClearAngles_Click"/>
+                        <TextBlock Text="ใช้เลขกล้อง 1, 2, 3... ใน Switch Plan" VerticalAlignment="Center" Margin="12,0"/>
+                    </WrapPanel>
+                    <ListBox Grid.Row="1" x:Name="AnglesListBox" DisplayMemberPath="DisplaySummary"/>
+                    <TextBlock Grid.Row="2" Text="Switch Plan: หนึ่งบรรทัดต่อช่วง — angle,start,end เช่น 1,0,4.5" FontWeight="SemiBold"/>
+                    <TextBox Grid.Row="3" x:Name="SwitchPlanTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" Text="1,0,3&#x0a;2,3,6"/>
+                    <Button Grid.Row="4" Content="สร้าง Multicam Job" Click="CreateMulticam_Click" HorizontalAlignment="Right" Background="#047857"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Keyframes">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <TextBlock Text="Keyframe Plan: time,zoom,focusX,focusY,audioGain — ระบบ Interpolate แบบ Linear ด้วย FFmpeg" TextWrapping="Wrap"/>
+                    <TextBox Grid.Row="1" x:Name="KeyframePlanTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" Text="0,1,0.5,0.5,1&#x0a;3,1.25,0.4,0.5,1&#x0a;6,1,0.5,0.5,1"/>
+                    <Button Grid.Row="2" Content="สร้าง Keyframe Job" Click="CreateKeyframe_Click" HorizontalAlignment="Right" Background="#047857"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Nested Sequence">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <TextBlock Text="บันทึก Timeline ปัจจุบันเป็น Sequence ที่ใช้ซ้ำได้ โดยไม่ทำสำเนา Source Media" TextWrapping="Wrap"/>
+                    <WrapPanel Grid.Row="1">
+                        <TextBlock Text="ชื่อ Sequence" VerticalAlignment="Center"/>
+                        <TextBox x:Name="NestedNameTextBox" Width="320" Text="Main Sequence"/>
+                        <Button Content="บันทึก Timeline ปัจจุบัน" Click="SaveNested_Click"/>
+                        <Button Content="รีเฟรช" Click="RefreshNested_Click"/>
+                    </WrapPanel>
+                    <ListBox Grid.Row="2" x:Name="NestedListBox" DisplayMemberPath="DisplaySummary"/>
+                    <Button Grid.Row="3" Content="Render Nested Sequence ที่เลือก" Click="RenderNested_Click" HorizontalAlignment="Right" Background="#047857"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Plugins">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel>
+                        <TextBlock Text="Plugin รุ่นนี้เป็น Declarative Export Preset เท่านั้น ไม่โหลด DLL หรือรันโค้ดภายนอก" TextWrapping="Wrap"/>
+                        <Button DockPanel.Dock="Right" Content="ค้นหา Plugin" Click="RefreshPlugins_Click"/>
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" x:Name="PluginsGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ชื่อ" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="90"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="130"/>
+                            <DataGridCheckBoxColumn Header="พร้อม" Binding="{Binding IsValid}" Width="70"/>
+                            <DataGridTextColumn Header="สถานะ" Binding="{Binding ValidationMessage}" Width="3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Cloud / Social">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="เลือก Output ที่ผ่าน QA แล้ว ระบบส่งไฟล์จริงไปโฟลเดอร์ หรือสร้าง Social Publishing Package ที่ตรวจสอบได้" TextWrapping="Wrap"/>
+                    <DockPanel Grid.Row="1">
+                        <Button DockPanel.Dock="Right" Content="เลือกวิดีโอ" Click="BrowseDeliveryVideo_Click"/>
+                        <TextBox x:Name="DeliveryVideoTextBox" IsReadOnly="True" Text="ยังไม่ได้เลือกวิดีโอ"/>
+                    </DockPanel>
+                    <DockPanel Grid.Row="2">
+                        <Button DockPanel.Dock="Right" Content="เลือกโฟลเดอร์" Click="BrowseDeliveryFolder_Click"/>
+                        <TextBox x:Name="DeliveryFolderTextBox" IsReadOnly="True" Text="ยังไม่ได้เลือกโฟลเดอร์"/>
+                    </DockPanel>
+                    <WrapPanel Grid.Row="3">
+                        <TextBlock Text="Platform" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="PlatformComboBox" Width="150" SelectedIndex="0">
+                            <ComboBoxItem Content="YouTube" Tag="youtube"/><ComboBoxItem Content="TikTok" Tag="tiktok"/>
+                            <ComboBoxItem Content="Instagram" Tag="instagram"/><ComboBoxItem Content="Facebook" Tag="facebook"/>
+                        </ComboBox>
+                        <TextBlock Text="ชื่อโพสต์" VerticalAlignment="Center"/>
+                        <TextBox x:Name="PublishTitleTextBox" Width="380" Text="AutoCut Studio Export"/>
+                    </WrapPanel>
+                    <WrapPanel Grid.Row="4" HorizontalAlignment="Right">
+                        <Button Content="ส่งไป Local / Cloud Sync Folder" Click="DeliverFolder_Click"/>
+                        <Button Content="สร้าง Social Outbox Package" Click="CreateSocialOutbox_Click" Background="#1D4ED8"/>
+                    </WrapPanel>
+                    <DataGrid Grid.Row="5" x:Name="ProvidersGrid" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Provider" Binding="{Binding DisplayName}" Width="2*"/>
+                            <DataGridTextColumn Header="ประเภท" Binding="{Binding Category}" Width="100"/>
+                            <DataGridCheckBoxColumn Header="Configured" Binding="{Binding IsConfigured}" Width="90"/>
+                            <DataGridCheckBoxColumn Header="Direct" Binding="{Binding CanPublishDirectly}" Width="70"/>
+                            <DataGridTextColumn Header="สถานะ" Binding="{Binding Message}" Width="3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Collaboration">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <TextBlock Text="ส่ง Project Metadata, Transcript, Subtitle, Report, Sequence, Plugin Manifest และ Job Log พร้อม SHA-256 โดยไม่รวม Source Media เป็นค่าเริ่มต้น" TextWrapping="Wrap"/>
+                    <WrapPanel Grid.Row="1">
+                        <CheckBox x:Name="IncludeMediaCheckBox" Content="รวม Source Media (ไฟล์อาจใหญ่มาก)"/>
+                        <Button Content="Export Collaboration ZIP" Click="ExportCollaboration_Click"/>
+                        <Button Content="Import และตรวจ Checksum" Click="ImportCollaboration_Click"/>
+                    </WrapPanel>
+                    <TextBox Grid.Row="2" x:Name="CollaborationLogTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <DockPanel Grid.Row="2" Margin="0,10,0,0">
+            <TextBlock x:Name="ProfessionalStatusText" Text="พร้อมใช้งาน" VerticalAlignment="Center"/>
+            <Button DockPanel.Dock="Right" Content="ปิด" Click="Close_Click"/>
+        </DockPanel>
+    </Grid>
+</Window>
