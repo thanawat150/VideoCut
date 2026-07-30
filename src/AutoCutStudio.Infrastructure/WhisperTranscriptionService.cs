@@ -52,12 +52,10 @@ public sealed partial class WhisperTranscriptionService
         var runDirectory = Path.Combine(workingRoot, "Speech", runId);
         Directory.CreateDirectory(runDirectory);
         var wavPath = Path.Combine(runDirectory, "audio.wav");
+        var stagedModelPath = Path.Combine(runDirectory, "model.bin");
         var outputBase = Path.Combine(runDirectory, "transcript");
-        var stagedModel = await EnsureAsciiArgumentPathAsync(
-            speech.ModelPath,
-            Path.Combine(workingRoot, "SpeechModels"),
-            cancellationToken);
 
+        await StageModelAsync(speech.ModelPath, stagedModelPath, cancellationToken);
         await ReportAsync(progress, 0, "กำลังแยกเสียง 16 kHz mono ด้วย FFmpeg");
         await ExtractAudioAsync(media.FfmpegPath, inputPath, wavPath, cancellationToken);
         await ReportAsync(progress, 10, "แยกเสียงแล้ว กำลังเริ่ม Whisper Local");
@@ -66,7 +64,7 @@ public sealed partial class WhisperTranscriptionService
         var startInfo = new ProcessStartInfo
         {
             FileName = speech.WhisperCliPath,
-            WorkingDirectory = Path.GetDirectoryName(speech.WhisperCliPath)!,
+            WorkingDirectory = runDirectory,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
@@ -75,7 +73,10 @@ public sealed partial class WhisperTranscriptionService
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        foreach (var argument in BuildArguments(stagedModel, wavPath, outputBase, options))
+        // whisper.cpp on Windows can reject Unicode file arguments in its narrow argv parser.
+        // Running inside the Unicode-capable working directory with ASCII relative arguments
+        // keeps the user/project path out of argv while preserving full Unicode support in .NET.
+        foreach (var argument in BuildArguments("model.bin", "audio.wav", "transcript", options))
         {
             startInfo.ArgumentList.Add(argument);
         }
@@ -92,7 +93,7 @@ public sealed partial class WhisperTranscriptionService
             while (await process.StandardError.ReadLineAsync(cancellationToken) is { } line)
             {
                 log.Add(line);
-                if (log.Count > 500)
+                if (log.Count > 700)
                 {
                     log.RemoveRange(0, 100);
                 }
@@ -119,13 +120,13 @@ public sealed partial class WhisperTranscriptionService
         var stdout = await stdoutTask;
         if (!string.IsNullOrWhiteSpace(stdout))
         {
-            log.AddRange(stdout.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).TakeLast(100));
+            log.AddRange(stdout.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).TakeLast(150));
         }
 
         if (process.ExitCode != 0)
         {
             throw new InvalidDataException(
-                $"Whisper ถอดเสียงไม่สำเร็จ (exit {process.ExitCode})\n{Tail(log, 25)}");
+                $"Whisper ถอดเสียงไม่สำเร็จ (exit {process.ExitCode})\n{SummarizeLog(log)}");
         }
 
         var jsonPath = outputBase + ".json";
@@ -133,7 +134,8 @@ public sealed partial class WhisperTranscriptionService
         var textPath = outputBase + ".txt";
         if (!File.Exists(jsonPath))
         {
-            throw new InvalidDataException("Whisper ทำงานจบแต่ไม่พบไฟล์ JSON Transcript");
+            throw new InvalidDataException(
+                $"Whisper ทำงานจบแต่ไม่พบไฟล์ JSON Transcript\n{SummarizeLog(log)}");
         }
 
         var transcript = await ParseTranscriptAsync(
@@ -270,8 +272,32 @@ public sealed partial class WhisperTranscriptionService
         var error = await stderrTask;
         if (process.ExitCode != 0 || !File.Exists(outputPath))
         {
-            throw new InvalidDataException($"FFmpeg แยกเสียงไม่สำเร็จ\n{Tail(error.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries), 18)}");
+            throw new InvalidDataException(
+                $"FFmpeg แยกเสียงไม่สำเร็จ\n{Tail(error.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries), 18)}");
         }
+    }
+
+    private static async Task StageModelAsync(
+        string sourcePath,
+        string targetPath,
+        CancellationToken cancellationToken)
+    {
+        await using var input = new FileStream(
+            sourcePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var output = new FileStream(
+            targetPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await input.CopyToAsync(output, 1024 * 1024, cancellationToken);
+        await output.FlushAsync(cancellationToken);
     }
 
     private static async Task<TranscriptDocument> ParseTranscriptAsync(
@@ -326,7 +352,8 @@ public sealed partial class WhisperTranscriptionService
                 {
                     foreach (var token in tokens.EnumerateArray())
                     {
-                        if (token.TryGetProperty("p", out var probability) && probability.TryGetDouble(out var value))
+                        if (token.TryGetProperty("p", out var probability) &&
+                            probability.TryGetDouble(out var value))
                         {
                             probabilities.Add(value);
                         }
@@ -362,28 +389,6 @@ public sealed partial class WhisperTranscriptionService
         };
     }
 
-    private static async Task<string> EnsureAsciiArgumentPathAsync(
-        string sourcePath,
-        string cacheDirectory,
-        CancellationToken cancellationToken)
-    {
-        if (sourcePath.All(character => character <= 127))
-        {
-            return sourcePath;
-        }
-
-        Directory.CreateDirectory(cacheDirectory);
-        var target = Path.Combine(cacheDirectory, Path.GetFileName(sourcePath));
-        if (!File.Exists(target) || new FileInfo(target).Length != new FileInfo(sourcePath).Length)
-        {
-            await using var input = File.OpenRead(sourcePath);
-            await using var output = File.Create(target);
-            await input.CopyToAsync(output, cancellationToken);
-        }
-
-        return target;
-    }
-
     private static Task ReportAsync(
         Func<double?, string, Task>? progress,
         double? value,
@@ -391,6 +396,18 @@ public sealed partial class WhisperTranscriptionService
 
     private static string Tail(IEnumerable<string> lines, int count) =>
         string.Join(Environment.NewLine, lines.TakeLast(count));
+
+    private static string SummarizeLog(IReadOnlyList<string> lines)
+    {
+        if (lines.Count <= 35)
+        {
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        return string.Join(Environment.NewLine, lines.Take(10)) +
+               Environment.NewLine + "..." + Environment.NewLine +
+               string.Join(Environment.NewLine, lines.TakeLast(25));
+    }
 
     private static void TryKill(Process process)
     {
