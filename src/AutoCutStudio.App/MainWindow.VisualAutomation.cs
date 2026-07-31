@@ -34,7 +34,7 @@ public partial class MainWindow
             var multiImportButton = new Button
             {
                 Content = "＋ Import หลายคลิป",
-                ToolTip = "เลือกหลาย MP4 หรือ Import ทั้งโฟลเดอร์"
+                ToolTip = "เลือกหลาย MP4 พร้อมกัน"
             };
             multiImportButton.SetResourceReference(StyleProperty, "SecondaryButtonStyle");
             multiImportButton.Click += ImportMultipleMedia_Click;
@@ -52,7 +52,7 @@ public partial class MainWindow
             var mobileButton = new Button
             {
                 Content = "◉ Mobile Control",
-                ToolTip = "เปิดหน้าเว็บควบคุมผ่านมือถือใน Wi-Fi เดียวกัน"
+                ToolTip = "ควบคุมผ่านมือถือใน Wi-Fi เดียวกัน"
             };
             mobileButton.SetResourceReference(StyleProperty, "SecondaryButtonStyle");
             mobileButton.Click += MobileControl_Click;
@@ -115,11 +115,10 @@ public partial class MainWindow
             Multiselect = true,
             CheckFileExists = true
         };
-        if (dialog.ShowDialog() != true)
+        if (dialog.ShowDialog() == true)
         {
-            return;
+            await ImportMediaPathsAsync(dialog.FileNames);
         }
-        await ImportMediaPathsAsync(dialog.FileNames);
     }
 
     private async void ImportMediaFolder_Click(object sender, RoutedEventArgs e)
@@ -139,8 +138,12 @@ public partial class MainWindow
         {
             return;
         }
-        var paths = Directory.EnumerateFiles(dialog.FolderName, "*.mp4", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => File.GetCreationTimeUtc(path))
+
+        var paths = Directory.EnumerateFiles(
+                dialog.FolderName,
+                "*.mp4",
+                SearchOption.TopDirectoryOnly)
+            .OrderBy(File.GetCreationTimeUtc)
             .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (paths.Length == 0)
@@ -168,7 +171,8 @@ public partial class MainWindow
             }
 
             var sourceMedia = _project.SourceMedia.ToList();
-            var existing = sourceMedia.Select(item => Path.GetFullPath(item.SourcePath))
+            var existing = sourceMedia
+                .Select(item => Path.GetFullPath(item.SourcePath))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var imported = new List<MediaAsset>();
             var failed = new List<string>();
@@ -191,6 +195,7 @@ public partial class MainWindow
                         failed.Add($"{Path.GetFileName(path)}: ไม่มี Video Stream");
                         continue;
                     }
+
                     var asset = new MediaAsset
                     {
                         SourcePath = path,
@@ -240,6 +245,7 @@ public partial class MainWindow
             LoadProjectIntoUi();
             LoadActiveMediaIntoPlayer();
             StatusBarText.Text = $"Import สำเร็จ {imported.Count} คลิป — พร้อมใช้ใน Automation Studio";
+
             if (failed.Count > 0)
             {
                 MessageBox.Show(
@@ -267,12 +273,12 @@ public partial class MainWindow
         {
             if (_mobileControlServer is { IsRunning: true })
             {
-                var result = MessageBox.Show(
+                var close = MessageBox.Show(
                     $"Mobile Control กำลังทำงาน\n\n{_mobileControlServer.DisplayUrl}\n\nต้องการปิด Server หรือไม่?",
                     "Mobile Control",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Information);
-                if (result == MessageBoxResult.Yes)
+                if (close == MessageBoxResult.Yes)
                 {
                     await _mobileControlServer.StopAsync();
                     _mobileControlServer = null;
@@ -281,47 +287,63 @@ public partial class MainWindow
                 return;
             }
 
-            _mobileControlServer = new MobileControlServer(
+            MobileControlServer? server = null;
+            server = new MobileControlServer(
                 () => _project,
-                () => _jobRepository.ListJobsAsync(_project!),
+                () => _jobRepository.ListJobsAsync(
+                    _project ?? throw new InvalidOperationException("Project ถูกปิดแล้ว")),
                 async workflowId =>
                 {
                     if (_project is null)
                     {
                         throw new InvalidOperationException("Project ถูกปิดแล้ว");
                     }
+
                     var repository = new VisualWorkflowRepository();
                     var workflow = await repository.OpenAsync(_project.RootPath, workflowId)
-                                   ?? throw new FileNotFoundException("ไม่พบ Workflow");
+                                   ?? throw new FileNotFoundException("ไม่พบ Workflow ที่บันทึกไว้");
                     var result = await new VisualWorkflowExecutor().ExecuteAsync(
                         _project,
                         workflow,
                         selectedMedia: _project.SourceMedia,
-                        requestApproval: null);
+                        requestApproval: request => server.RequestApprovalAsync(request));
                     _project = result.UpdatedProject;
-                    await Dispatcher.InvokeAsync(async () =>
+                    await RunOnUiThreadAsync(async () =>
                     {
                         await RefreshJobsAsync();
                         await TryStartNextQueuedJobAsync();
+                        StatusBarText.Text = $"Mobile Automation สร้าง {result.CreatedJobs.Count} Job";
                     });
                     return result;
                 },
-                async filePath =>
-                {
-                    await Dispatcher.InvokeAsync(async () => await ImportMediaPathsAsync([filePath]));
-                });
-            await _mobileControlServer.StartAsync();
-            StatusBarText.Text = $"Mobile Control พร้อม: {_mobileControlServer.DisplayUrl}";
+                filePath => RunOnUiThreadAsync(() => ImportMediaPathsAsync([filePath])));
+
+            _mobileControlServer = server;
+            await server.StartAsync();
+            StatusBarText.Text = $"Mobile Control พร้อม: {server.DisplayUrl}";
             MessageBox.Show(
-                $"เปิดลิงก์นี้บนมือถือที่อยู่ Wi-Fi เดียวกัน\n\n{_mobileControlServer.DisplayUrl}\n\nรหัสเชื่อมต่อ: {_mobileControlServer.AccessToken}\n\nคอมพิวเตอร์ต้องเปิดโปรแกรมไว้ตลอดการประมวลผล",
+                $"เปิดลิงก์นี้บนมือถือที่อยู่ Wi-Fi เดียวกัน\n\n{server.DisplayUrl}\n\nรหัสเชื่อมต่อ: {server.AccessToken}\n\nคอมพิวเตอร์ต้องเปิดโปรแกรมไว้ตลอดการประมวลผล",
                 "Mobile Control พร้อมใช้งาน",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
         catch (Exception exception)
         {
+            if (_mobileControlServer is not null)
+            {
+                await _mobileControlServer.DisposeAsync();
+            }
             _mobileControlServer = null;
             ShowError("เปิด Mobile Control ไม่สำเร็จ", exception);
         }
+    }
+
+    private Task RunOnUiThreadAsync(Func<Task> action)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            return action();
+        }
+        return Dispatcher.InvokeAsync(action).Task.Unwrap();
     }
 }
