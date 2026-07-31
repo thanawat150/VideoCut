@@ -88,11 +88,8 @@ New-Item $ToolsRoot -ItemType Directory -Force | Out-Null
 Remove-Item $WhisperDownload,$WhisperDirectory,$WhisperModelDirectory,$VisionModelDirectory -Recurse -Force -ErrorAction SilentlyContinue
 New-Item $WhisperDownload,$WhisperDirectory,$WhisperModelDirectory,$VisionModelDirectory -ItemType Directory -Force | Out-Null
 
-$installedFfmpeg = choco list --local-only --exact ffmpeg --limit-output 2>$null
-if ($LASTEXITCODE -ne 0 -or $installedFfmpeg -notmatch "^ffmpeg\|$([regex]::Escape($FfmpegChocolateyVersion))$") {
-    choco install ffmpeg --version=$FfmpegChocolateyVersion -y --no-progress --allow-downgrade
-    if ($LASTEXITCODE -ne 0) { throw "Chocolatey FFmpeg installation failed." }
-}
+choco install ffmpeg --version=$FfmpegChocolateyVersion -y --no-progress --allow-downgrade
+if ($LASTEXITCODE -ne 0) { throw "Chocolatey FFmpeg installation failed." }
 
 $FfmpegDirectory = Resolve-BundledFfmpegDirectory
 $FfmpegPath = Join-Path $FfmpegDirectory "ffmpeg.exe"
@@ -106,7 +103,7 @@ Expand-Archive -LiteralPath $WhisperArchive -DestinationPath $WhisperDownload -F
 $WhisperCliSource = Get-ChildItem -LiteralPath $WhisperDownload -Filter "whisper-cli.exe" -File -Recurse |
     Select-Object -First 1
 if ($null -eq $WhisperCliSource) { throw "The official whisper.cpp archive does not contain whisper-cli.exe." }
-Copy-Item -LiteralPath (Join-Path $WhisperCliSource.DirectoryName "*") -Destination $WhisperDirectory -Recurse -Force
+Copy-Item -Path (Join-Path $WhisperCliSource.DirectoryName "*") -Destination $WhisperDirectory -Recurse -Force
 $WhisperCliPath = Join-Path $WhisperDirectory "whisper-cli.exe"
 Assert-FileHash $WhisperCliPath $Expected.whisper_cli "whisper.cpp CLI"
 
