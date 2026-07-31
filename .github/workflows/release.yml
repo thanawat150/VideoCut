@@ -1,0 +1,253 @@
+name: AutoCut Studio Portable Release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release.yml"
+      - "scripts/prepare-release-dependencies.ps1"
+      - "scripts/build-portable.ps1"
+      - "src/**"
+      - "tests/**"
+      - "plugins/**"
+      - "AutoCutStudio.sln"
+      - "Directory.Build.props"
+      - "global.json"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix"
+        required: true
+        default: "0.1.0"
+        type: string
+      publish_release:
+        description: "Create or update a GitHub Release after validation"
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autocut-portable-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test-release:
+    name: Build, validate and publish portable Windows package
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Prepare pinned FFmpeg, Whisper and OpenCV dependencies
+        shell: pwsh
+        run: ./scripts/prepare-release-dependencies.ps1
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore AutoCutStudio.sln
+
+      - name: Build Release
+        shell: pwsh
+        run: dotnet build AutoCutStudio.sln -c Release --no-restore
+
+      - name: Test all phases
+        shell: pwsh
+        run: dotnet test AutoCutStudio.sln -c Release --no-build --logger "trx;LogFileName=autocut-release-tests.trx"
+
+      - name: Verify asInvoker manifest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "src/AutoCutStudio.App/app.manifest" -Raw
+          if ($manifest -notmatch 'requestedExecutionLevel level="asInvoker"') {
+            throw "Application manifest is not configured as asInvoker."
+          }
+
+      - name: Build complete portable package
+        shell: pwsh
+        run: ./scripts/build-portable.ps1
+
+      - name: Validate portable package and generate release manifest
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $zip = Resolve-Path "artifacts/AutoCutStudio-win-x64.zip"
+          $checksumFile = Resolve-Path "artifacts/AutoCutStudio-win-x64.zip.sha256"
+          $declaredHash = ((Get-Content $checksumFile -Raw).Trim() -split "\s+")[0].ToLowerInvariant()
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($declaredHash -ne $actualHash) {
+            throw "Portable ZIP SHA-256 mismatch. Declared $declaredHash, actual $actualHash."
+          }
+
+          $verifyRoot = Join-Path $env:RUNNER_TEMP "autocut-release-verify"
+          Remove-Item $verifyRoot -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive $zip $verifyRoot -Force
+
+          $required = @(
+            "AutoCutStudio.exe",
+            "AutoCutStudio.Worker.exe",
+            "tools\ffmpeg\ffmpeg.exe",
+            "tools\ffmpeg\ffprobe.exe",
+            "tools\whisper\whisper-cli.exe",
+            "models\whisper\ggml-base-q5_1.bin",
+            "models\opencv\face_detection_yunet_2023mar.onnx",
+            "models\opencv\object_detection_yolox_2022nov.onnx",
+            "plugins\official-youtube-1080p\plugin.json",
+            "third_party\ffmpeg\bundle-manifest.json",
+            "third_party\whisper.cpp\bundle-manifest.json",
+            "third_party\opencv-zoo\bundle-manifest.json"
+          )
+          foreach ($relativePath in $required) {
+            $path = Join-Path $verifyRoot $relativePath
+            if (-not (Test-Path $path -PathType Leaf)) {
+              throw "Portable package is missing: $relativePath"
+            }
+          }
+
+          $worker = Join-Path $verifyRoot "AutoCutStudio.Worker.exe"
+          $doctorOutput = & $worker --doctor
+          if ($LASTEXITCODE -ne 0) {
+            throw "Portable worker dependency doctor failed: $doctorOutput"
+          }
+          $doctor = $doctorOutput | ConvertFrom-Json
+          if (-not $doctor.ready -or $doctor.status -ne "ready") {
+            throw "Portable dependency doctor did not report ready: $doctorOutput"
+          }
+          if (-not $doctor.face_model_ready -or -not $doctor.object_model_ready) {
+            throw "Portable dependency doctor did not detect both OpenCV models."
+          }
+
+          $testDirectory = Join-Path $verifyRoot "ทดสอบ release path มีช่องว่าง"
+          New-Item $testDirectory -ItemType Directory -Force | Out-Null
+          $testMedia = Join-Path $testDirectory "release input.mp4"
+          $ffmpeg = Join-Path $verifyRoot "tools\ffmpeg\ffmpeg.exe"
+          $ffprobe = Join-Path $verifyRoot "tools\ffmpeg\ffprobe.exe"
+          & $ffmpeg -hide_banner -loglevel error -y `
+            -f lavfi -i "testsrc2=size=320x180:rate=25" `
+            -f lavfi -i "sine=frequency=440:sample_rate=48000" `
+            -t 1.5 -c:v libx264 -pix_fmt yuv420p -c:a aac $testMedia
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $testMedia -PathType Leaf)) {
+            throw "Bundled FFmpeg could not create release smoke-test media."
+          }
+          $probeJson = & $ffprobe -v error -show_entries stream=codec_type -of json $testMedia
+          if ($LASTEXITCODE -ne 0) { throw "Bundled FFprobe could not inspect release smoke-test media." }
+          $probe = $probeJson | ConvertFrom-Json
+          $streamTypes = @($probe.streams | ForEach-Object { $_.codec_type })
+          if ($streamTypes -notcontains "video" -or $streamTypes -notcontains "audio") {
+            throw "Release smoke-test media is missing a video or audio stream."
+          }
+
+          $version = if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $env:GITHUB_REF_NAME.TrimStart([char]'v')
+          } elseif ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") {
+            "${{ inputs.version }}".TrimStart([char]'v')
+          } else {
+            "0.0.0-pr.$env:GITHUB_RUN_NUMBER"
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Release version is not valid: $version"
+          }
+
+          $manifest = [ordered]@{
+            product = "AutoCut Studio"
+            version = $version
+            commit_sha = $env:GITHUB_SHA
+            built_at_utc = [DateTimeOffset]::UtcNow.ToString("O")
+            runtime = "win-x64"
+            package = "AutoCutStudio-win-x64.zip"
+            package_size_bytes = (Get-Item $zip).Length
+            package_sha256 = $actualHash
+            source_ref = $env:GITHUB_REF
+            validation = [ordered]@{
+              dotnet_build = "passed"
+              automated_tests = "passed"
+              portable_dependency_doctor = "passed"
+              real_media_ffmpeg_ffprobe = "passed"
+              thai_path_and_spaces = "passed"
+              manual_windows_ui_signoff = "required"
+            }
+          }
+          $manifestPath = Join-Path $PWD "artifacts\AutoCutStudio-release-manifest.json"
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content $manifestPath -Encoding utf8
+
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$actualHash" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "zip=$zip" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload validated portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-win-x64-v${{ steps.package.outputs.version }}
+          path: |
+            artifacts/AutoCutStudio-win-x64.zip
+            artifacts/AutoCutStudio-win-x64.zip.sha256
+            artifacts/AutoCutStudio-release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-release-test-results
+          path: |
+            **/TestResults/*.trx
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create or update GitHub Release
+        if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+          RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $releaseExists = $false
+          & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+
+          if (-not $releaseExists) {
+            $arguments = @(
+              "release", "create", $env:RELEASE_TAG,
+              "--repo", $env:GITHUB_REPOSITORY,
+              "--target", $env:GITHUB_SHA,
+              "--title", "AutoCut Studio $env:RELEASE_TAG",
+              "--generate-notes"
+            )
+            if ($env:GITHUB_REF_TYPE -ne "tag" -and $env:RELEASE_PRERELEASE -eq "true") {
+              $arguments += "--prerelease"
+            }
+            & gh @arguments
+            if ($LASTEXITCODE -ne 0) { throw "GitHub Release creation failed." }
+          }
+
+          & gh release upload $env:RELEASE_TAG `
+            "artifacts/AutoCutStudio-win-x64.zip" `
+            "artifacts/AutoCutStudio-win-x64.zip.sha256" `
+            "artifacts/AutoCutStudio-release-manifest.json" `
+            --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw "GitHub Release asset upload failed." }
+
+          Write-Host "Published AutoCut Studio $env:RELEASE_TAG"
