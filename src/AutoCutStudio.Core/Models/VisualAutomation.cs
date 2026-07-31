@@ -12,6 +12,7 @@ public static class VisualNodeTypes
     public const string AnalyzeHighlights = "analyze_highlights";
     public const string AutoBroll = "auto_broll";
     public const string VisualApproval = "visual_approval";
+    public const string Condition = "condition";
     public const string EnhanceAudio = "enhance_audio";
     public const string Stabilize = "stabilize";
     public const string ColorCorrection = "color_correction";
@@ -32,6 +33,7 @@ public static class VisualNodeTypes
         AnalyzeHighlights,
         AutoBroll,
         VisualApproval,
+        Condition,
         EnhanceAudio,
         Stabilize,
         ColorCorrection,
