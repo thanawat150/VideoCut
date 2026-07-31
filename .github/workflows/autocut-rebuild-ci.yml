@@ -89,9 +89,26 @@ jobs:
           $job | ConvertTo-Json -Depth 8 | Set-Content $jobPath -Encoding utf8
           $env:AUTOCUT_REBUILD_FFMPEG = (Get-Command ffmpeg.exe).Source
           $env:AUTOCUT_REBUILD_FFPROBE = (Get-Command ffprobe.exe).Source
-          & "artifacts/worker-test/AutoCutStudio.Rebuild.exe" --worker $jobPath
-          if ($LASTEXITCODE -ne 0) { throw "Worker render failed." }
-          if (-not (Test-Path $output -PathType Leaf)) { throw "Output is missing." }
+          $workerInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $workerInfo.FileName = (Resolve-Path "artifacts/worker-test/AutoCutStudio.Rebuild.exe").Path
+          $workerInfo.UseShellExecute = $false
+          $workerInfo.ArgumentList.Add("--worker")
+          $workerInfo.ArgumentList.Add($jobPath)
+          $workerProcess = [System.Diagnostics.Process]::Start($workerInfo)
+          if ($null -eq $workerProcess) { throw "Worker process did not start." }
+          $workerProcess.WaitForExit()
+          if ($workerProcess.ExitCode -ne 0) {
+            $errorLog = Join-Path $jobs "error.log"
+            if (Test-Path $errorLog -PathType Leaf) { Get-Content $errorLog }
+            Get-Content $jobPath
+            throw "Worker render failed with exit code $($workerProcess.ExitCode)."
+          }
+          if (-not (Test-Path $output -PathType Leaf)) {
+            $errorLog = Join-Path $jobs "error.log"
+            if (Test-Path $errorLog -PathType Leaf) { Get-Content $errorLog }
+            Get-Content $jobPath
+            throw "Output is missing after Worker completed."
+          }
           $probe = ffprobe -v error -show_entries stream=codec_type -show_entries format=duration -of json $output | ConvertFrom-Json
           $types = @($probe.streams | ForEach-Object { $_.codec_type })
           if ($types -notcontains "video" -or $types -notcontains "audio") { throw "Output streams are invalid." }
@@ -118,8 +135,14 @@ jobs:
           foreach ($file in @("AutoCutStudio.Rebuild.exe", "tools/ffmpeg/ffmpeg.exe", "tools/ffmpeg/ffprobe.exe")) {
             if (-not (Test-Path (Join-Path $verify $file) -PathType Leaf)) { throw "Portable file is missing: $file" }
           }
-          & (Join-Path $verify "AutoCutStudio.Rebuild.exe") --doctor
-          if ($LASTEXITCODE -ne 0) { throw "Portable doctor failed." }
+          $doctorInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $doctorInfo.FileName = Join-Path $verify "AutoCutStudio.Rebuild.exe"
+          $doctorInfo.UseShellExecute = $false
+          $doctorInfo.ArgumentList.Add("--doctor")
+          $doctorProcess = [System.Diagnostics.Process]::Start($doctorInfo)
+          if ($null -eq $doctorProcess) { throw "Portable doctor process did not start." }
+          $doctorProcess.WaitForExit()
+          if ($doctorProcess.ExitCode -ne 0) { throw "Portable doctor failed with exit code $($doctorProcess.ExitCode)." }
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
