@@ -1,6 +1,36 @@
-# AutoCut Studio
+# AutoCut Studio — Visual Video Automation
 
-AutoCut Studio is a Windows-first, local-first desktop video editor. Its Pixel Agents change state only when real backend events are emitted by analysis, editing, rendering or QA work.
+AutoCut Studio is a Windows-first, local-first visual video automation system. It combines a Make/n8n-style workflow canvas with real local Whisper, FFmpeg, OpenCV, persistent workers, QA and non-destructive media handling. Node and Agent states change only when real backend work occurs.
+
+## Visual Automation Studio
+
+The primary experience is a draggable node canvas for building reusable video production flows:
+
+```text
+Media / Folder Input
+→ Transcribe
+→ Remove Fillers / Remove Silence
+→ Captions
+→ Highlights
+→ Auto B-roll + Approval
+→ Platform Style
+→ Shorts / Multi-clip Export
+```
+
+Implemented automation capabilities:
+
+- Node library, draggable canvas, connections, settings, validation and execution states
+- Persistent workflow templates and resumable run documents
+- Local Whisper transcription, transcript editing and SRT generation
+- Real FFmpeg silence removal, multi-clip cut/crossfade and versioned exports
+- TikTok, Instagram Reels, Facebook Reels/Feed, YouTube Shorts/16:9 and square presets
+- Thai-aware caption pagination with platform-specific safe zones
+- Automatic matching of transcript topics to local project B-roll, followed by explicit approval
+- B-roll overlay, animated captions, voice enhancement, color correction and stabilization in social renders
+- Multi-file and whole-folder import
+- Token-protected mobile LAN dashboard for MP4 upload, workflow execution, approval and job control
+
+Default templates include talking-head TikTok, multi-platform Shorts, event recap and transcript/SRT workflows.
 
 ## Implemented product scope
 
@@ -61,7 +91,7 @@ AutoCut Studio is a Windows-first, local-first desktop video editor. Its Pixel A
 
 ## Important provider limitation
 
-Cloud and social provider interfaces report their actual configuration state. The built-in product performs real file delivery to local or synced folders and creates inspectable social outbox packages. It does **not** claim a YouTube, TikTok, Instagram or Facebook upload succeeded without an authenticated provider plugin, account approval and the relevant external API permission.
+Cloud and social provider interfaces report their actual configuration state. The built-in product performs real file delivery to local or synced folders, uses project-local B-roll and creates inspectable social outbox packages. It does **not** claim a YouTube, TikTok, Instagram or Facebook upload, stock download or cloud-generated image succeeded without an authenticated provider plugin, account approval and the relevant external API permission.
 
 ## Technology stack
 
@@ -71,7 +101,7 @@ Cloud and social provider interfaces report their actual configuration state. Th
 - `whisper.cpp`
 - OpenCvSharp with OpenCV Zoo YuNet and YOLOX ONNX models
 - PdfPig and direct DOCX XML parsing
-- JSON project/job persistence
+- JSON project/job/workflow persistence
 - xUnit real-media integration tests
 - GitHub Actions on Windows
 
@@ -126,10 +156,12 @@ Dependency diagnostic command:
 - Tool arguments use `ProcessStartInfo.ArgumentList`; user text is not concatenated into a shell command.
 - Speech, face and object analysis run locally.
 - Privacy Blur is generated only from tracks selected by the user.
+- B-roll is copied into the relevant job directory only after approval.
+- Mobile Control uses a per-session token and exposes no arbitrary filesystem browser.
 - Plugins are declarative JSON presets and cannot execute arbitrary code.
 - Collaboration import validates paths, file sizes and SHA-256 values.
 - API secrets are not persisted in project files or logs.
 
 ## Validation boundary
 
-Automated CI validates compile, tests, real media, real Whisper, model loading, rendering, QA, portable dependencies, Thai paths, spaces and ZIP integrity. A final manual UI smoke test on the target Windows 10/11 hardware remains the release sign-off step for hardware-specific playback, GPU drivers and installed Windows voices.
+Automated CI validates compile, tests, real media, real Whisper, model loading, rendering, QA, portable dependencies, Thai paths, spaces and ZIP integrity. A final manual UI smoke test on the target Windows 10/11 hardware remains the release sign-off step for hardware-specific playback, GPU drivers, Windows Firewall prompts, LAN routing and installed Windows voices.

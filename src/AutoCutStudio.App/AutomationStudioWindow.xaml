@@ -1,0 +1,182 @@
+<Window x:Class="AutoCutStudio.App.AutomationStudioWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AutoCut Studio — Visual Video Automation"
+        Width="1540" Height="920" MinWidth="1180" MinHeight="720"
+        WindowStartupLocation="CenterOwner">
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="68"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="188"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="260"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <Border Width="42" Height="42" CornerRadius="12" Background="{StaticResource AccentGradientBrush}">
+                        <TextBlock Text="▶" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Automation Studio" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="Visual Video Workflow" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+                <ComboBox x:Name="WorkflowComboBox" Grid.Column="1" Margin="4" Padding="8"
+                          SelectionChanged="WorkflowComboBox_SelectionChanged"/>
+                <TextBox x:Name="WorkflowNameTextBox" Grid.Column="2" Margin="8,4" Padding="10"
+                         FontWeight="SemiBold" VerticalContentAlignment="Center" TextChanged="WorkflowNameTextBox_TextChanged"/>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="ตรวจ Flow" Click="Validate_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button Content="บันทึก" Click="Save_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button Content="▶ Run Automation" Click="Run_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                    <Button x:Name="CancelRunButton" Content="หยุด" Click="CancelRun_Click" IsEnabled="False"
+                            Style="{StaticResource DangerButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="238"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="310"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="0,0,1,0" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="NODE LIBRARY" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="4,2,4,8"/>
+                    <TextBox x:Name="NodeSearchTextBox" Grid.Row="1" Margin="0,0,0,8" TextChanged="NodeSearchTextBox_TextChanged"
+                             ToolTip="ค้นหา Node"/>
+                    <ListBox x:Name="NodeLibraryListBox" Grid.Row="2" Background="Transparent" BorderThickness="0"
+                             MouseDoubleClick="NodeLibraryListBox_MouseDoubleClick"/>
+                    <StackPanel Grid.Row="3">
+                        <Button Content="＋ เพิ่ม Node" Click="AddNode_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                        <Separator Margin="0,8"/>
+                        <Button Content="เพิ่มภาพ/B-roll เข้า Project" Click="AddAssets_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                        <TextBlock Text="ดับเบิลคลิก Node เพื่อเพิ่มลง Canvas" Foreground="{StaticResource MutedTextBrush}"
+                                   TextWrapping="Wrap" FontSize="11" Margin="4,6"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#172036"/>
+
+            <Grid Grid.Column="2" Background="#080D18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="#0E1627" BorderBrush="#253451" BorderThickness="0,0,0,1" Padding="8">
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                            <Button Content="ลบ Node" Click="RemoveNode_Click" Style="{StaticResource CompactButtonStyle}"/>
+                            <Button Content="เริ่มเชื่อมจาก Node นี้" Click="StartConnect_Click" Style="{StaticResource CompactButtonStyle}"/>
+                            <Button Content="เชื่อมมายัง Node นี้" Click="FinishConnect_Click" Style="{StaticResource CompactButtonStyle}"/>
+                            <Button Content="ลบเส้นเข้า Node" Click="RemoveIncomingConnections_Click" Style="{StaticResource CompactButtonStyle}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                            <TextBlock x:Name="CanvasHintText" Text="ลาก Node เพื่อจัด Flow" Foreground="{StaticResource MutedTextBrush}"
+                                       VerticalAlignment="Center" Margin="8,0"/>
+                            <TextBlock Text="Zoom" VerticalAlignment="Center"/>
+                            <Slider x:Name="ZoomSlider" Width="110" Minimum="0.55" Maximum="1.35" Value="0.85"
+                                    ValueChanged="ZoomSlider_ValueChanged"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <ScrollViewer Grid.Row="1" x:Name="CanvasScrollViewer" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto" PanningMode="Both">
+                    <Viewbox x:Name="CanvasViewbox" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top">
+                        <Canvas x:Name="WorkflowCanvas" Width="2600" Height="1500" Background="#080D18"
+                                MouseLeftButtonDown="WorkflowCanvas_MouseLeftButtonDown"/>
+                    </Viewbox>
+                </ScrollViewer>
+            </Grid>
+
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="#172036"/>
+
+            <Border Grid.Column="4" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="1,0,0,0" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="NODE SETTINGS" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,12"/>
+                        <Border x:Name="NoNodeSelectedPanel" Background="#101A2D" CornerRadius="10" Padding="14">
+                            <TextBlock Text="เลือก Node บน Canvas เพื่อแก้ชื่อ ตำแหน่ง และค่าการทำงาน"
+                                       Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+                        </Border>
+                        <StackPanel x:Name="NodeSettingsPanel" Visibility="Collapsed">
+                            <TextBlock Text="ชื่อ Node" FontWeight="SemiBold"/>
+                            <TextBox x:Name="SelectedNodeNameTextBox" TextChanged="SelectedNodeNameTextBox_TextChanged"/>
+                            <TextBlock Text="ประเภท" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                            <TextBlock x:Name="SelectedNodeTypeText" Foreground="{StaticResource MutedTextBrush}" Margin="4"/>
+                            <CheckBox x:Name="SelectedNodeDisabledCheckBox" Content="ปิดใช้งาน Node นี้" Margin="4,10"
+                                      Checked="SelectedNodeDisabledCheckBox_Changed" Unchecked="SelectedNodeDisabledCheckBox_Changed"/>
+                            <TextBlock Text="Settings (key=value)" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                            <TextBox x:Name="NodeSettingsTextBox" Height="270" AcceptsReturn="True" FontFamily="Consolas"
+                                     VerticalScrollBarVisibility="Auto" TextChanged="NodeSettingsTextBox_TextChanged"/>
+                            <Border Background="#0C1424" BorderBrush="#263752" BorderThickness="1" CornerRadius="8"
+                                    Padding="10" Margin="4,12">
+                                <StackPanel>
+                                    <TextBlock Text="Input / Output" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="NodeConnectionSummaryText" Foreground="{StaticResource MutedTextBrush}"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <Separator Margin="0,14"/>
+                        <TextBlock Text="FLOW INFO" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock x:Name="FlowInfoText" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="4,8"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Background="#0C1424" BorderBrush="#263752" BorderThickness="0,1,0,0" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <DockPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="EXECUTION" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock x:Name="RunSummaryText" Text="ยังไม่ได้ Run" Foreground="{StaticResource MutedTextBrush}" Margin="12,0"/>
+                    </StackPanel>
+                    <Button DockPanel.Dock="Right" Content="เปิด Job Center" Click="OpenJobCenter_Click"
+                            Style="{StaticResource CompactButtonStyle}"/>
+                </DockPanel>
+                <DataGrid x:Name="ExecutionGrid" Grid.Row="1" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" Margin="0,0,10,0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Node" Binding="{Binding DisplayName}" Width="1.3*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                        <DataGridTextColumn Header="Progress" Binding="{Binding ProgressText}" Width="80"/>
+                        <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="2*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBox x:Name="ExecutionLogTextBox" Grid.Row="1" Grid.Column="1" IsReadOnly="True" AcceptsReturn="True"
+                         FontFamily="Consolas" FontSize="12" VerticalScrollBarVisibility="Auto"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

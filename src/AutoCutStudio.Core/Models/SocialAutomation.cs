@@ -5,18 +5,25 @@ public static class JobTypes
     public const string TimelineExport = "timeline_export";
     public const string SocialClipExport = "social_clip_export";
     public const string EnhancedExport = "enhanced_export";
+    public const string MultiClipExport = "multi_clip_export";
 }
 
 public sealed record SocialExportPreset
 {
     public string Id { get; init; } = "tiktok";
-    public string DisplayName { get; init; } = "TikTok / Reels / Shorts";
+    public string PlatformId { get; init; } = "tiktok";
+    public string DisplayName { get; init; } = "TikTok";
     public int Width { get; init; } = 1080;
     public int Height { get; init; } = 1920;
     public int FrameRate { get; init; } = 30;
     public string AspectStrategy { get; init; } = "center_crop";
     public int VideoBitrateKbps { get; init; } = 8000;
     public int AudioBitrateKbps { get; init; } = 192;
+    public double SuggestedMaximumDurationSeconds { get; init; } = 60;
+    public string Pacing { get; init; } = "fast";
+    public bool EnableHook { get; init; } = true;
+    public bool EnableCta { get; init; } = true;
+    public CaptionSafeZone CaptionSafeZone { get; init; } = new();
 }
 
 public sealed record RenderRecipe
@@ -32,6 +39,8 @@ public sealed record RenderRecipe
     public bool BurnCaptions { get; init; }
     public string? HookText { get; init; }
     public string? CtaText { get; init; }
+    public CaptionSafeZone CaptionSafeZone { get; init; } = new();
+    public List<BrollOverlayRecipe> BrollOverlays { get; init; } = [];
     public string AudioEnhancementPreset { get; init; } = AudioEnhancementPresets.None;
     public string ColorPreset { get; init; } = ColorPresets.None;
     public bool Stabilize { get; init; }

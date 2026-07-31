@@ -10,16 +10,23 @@ internal static class WorkerProgram
     public static async Task<int> RunAsync(string[] args)
     {
         if (args.Any(argument => string.Equals(argument, "--doctor", StringComparison.OrdinalIgnoreCase)))
+        {
             return RunDoctor();
+        }
+
         var jobPath = ParseJobPath(args);
         if (jobPath is null)
         {
             Console.Error.WriteLine("Usage: AutoCutStudio.Worker --job <path-to-job.json> | --doctor");
             return 64;
         }
+
         var jobs = new JobRepository();
         JobDocument job;
-        try { job = await jobs.ReadJobAsync(jobPath); }
+        try
+        {
+            job = await jobs.ReadJobAsync(jobPath);
+        }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"Unable to read job: {exception.Message}");
@@ -31,13 +38,18 @@ internal static class WorkerProgram
             await jobs.AppendEventAsync(job, agentEvent);
             Console.WriteLine("EVENT:" + JsonSerializer.Serialize(agentEvent, JsonDefaults.CompactOptions));
         }
+
         async Task UpdateProgressAsync(JobProgress progress) => await jobs.WriteProgressAsync(job, progress);
 
         try
         {
             var tools = new ToolLocator();
             var availability = tools.Locate();
-            if (!availability.IsReady) throw new InvalidOperationException(availability.Message);
+            if (!availability.IsReady)
+            {
+                throw new InvalidOperationException(availability.Message);
+            }
+
             job = job with
             {
                 Status = JobStatuses.Preparing,
@@ -63,6 +75,11 @@ internal static class WorkerProgram
             await jobs.AppendRunLogAsync(job, $"Input: {job.InputPath}");
             await jobs.AppendRunLogAsync(job, $"Output: {job.OutputPath}");
             await jobs.AppendRunLogAsync(job, $"Segments: {job.Segments.Count}");
+            if (job.MultiClipRecipe is not null)
+            {
+                await jobs.AppendRunLogAsync(job, $"Multi-clip inputs: {job.MultiClipRecipe.Inputs.Count}");
+            }
+
             await EmitAsync(new AgentEvent
             {
                 EventType = "agent.completed",
@@ -83,6 +100,7 @@ internal static class WorkerProgram
             {
                 JobTypes.SocialClipExport => new FfmpegSocialProcessor(tools),
                 JobTypes.EnhancedExport => new FfmpegEnhancedProcessor(tools),
+                JobTypes.MultiClipExport => new FfmpegMultiClipProcessor(tools),
                 AdvancedJobTypes.PrivacyBlurExport => new FfmpegPrivacyBlurProcessor(tools),
                 AdvancedJobTypes.TemplateVideoExport => new FfmpegTemplateVideoProcessor(tools),
                 ProfessionalJobTypes.MulticamExport or
@@ -95,7 +113,9 @@ internal static class WorkerProgram
             await WriteJsonAsync(Path.Combine(jobDirectory, "processing_report.json"), processingReport);
             await jobs.AppendRunLogAsync(job, processingReport.SafeCommandDisplay);
             if (processingReport.SourceWasModified)
+            {
                 throw new InvalidDataException("Source file metadata changed during processing.");
+            }
 
             await EmitAsync(new AgentEvent
             {
@@ -115,7 +135,11 @@ internal static class WorkerProgram
             var (qaReport, manifest) = await qualityControl.ValidateAsync(job);
             await WriteJsonAsync(Path.Combine(jobDirectory, "qa_report.json"), qaReport);
             if (!qaReport.Passed || manifest is null)
-                throw new InvalidDataException(qaReport.Errors.Count == 0 ? "Output QA failed." : string.Join("; ", qaReport.Errors));
+            {
+                throw new InvalidDataException(
+                    qaReport.Errors.Count == 0 ? "Output QA failed." : string.Join("; ", qaReport.Errors));
+            }
+
             await WriteJsonAsync(Path.Combine(jobDirectory, "manifest.json"), manifest);
             await EmitAsync(new AgentEvent
             {
@@ -172,7 +196,12 @@ internal static class WorkerProgram
         }
         catch (JobCancelledException exception)
         {
-            job = job with { Status = JobStatuses.Cancelled, WorkerProcessId = null, FailureMessage = exception.Message };
+            job = job with
+            {
+                Status = JobStatuses.Cancelled,
+                WorkerProcessId = null,
+                FailureMessage = exception.Message
+            };
             await jobs.WriteJobAsync(job);
             await jobs.WriteErrorAsync(job, exception.ToString());
             await UpdateProgressAsync(new JobProgress
@@ -201,7 +230,12 @@ internal static class WorkerProgram
         }
         catch (Exception exception)
         {
-            job = job with { Status = JobStatuses.Failed, WorkerProcessId = null, FailureMessage = exception.Message };
+            job = job with
+            {
+                Status = JobStatuses.Failed,
+                WorkerProcessId = null,
+                FailureMessage = exception.Message
+            };
             try
             {
                 await jobs.WriteJobAsync(job);
@@ -253,6 +287,13 @@ internal static class WorkerProgram
             face_model_ready = vision.FaceModelPath is not null,
             object_model_ready = vision.ObjectModelPath is not null,
             vision_message = vision.Message,
+            automation_jobs = new[]
+            {
+                JobTypes.TimelineExport,
+                JobTypes.SocialClipExport,
+                JobTypes.EnhancedExport,
+                JobTypes.MultiClipExport
+            },
             professional_jobs = new[]
             {
                 ProfessionalJobTypes.MulticamExport,
@@ -267,8 +308,12 @@ internal static class WorkerProgram
     private static string? ParseJobPath(string[] args)
     {
         for (var index = 0; index < args.Length - 1; index++)
+        {
             if (string.Equals(args[index], "--job", StringComparison.OrdinalIgnoreCase))
+            {
                 return Path.GetFullPath(args[index + 1]);
+            }
+        }
         return null;
     }
 
