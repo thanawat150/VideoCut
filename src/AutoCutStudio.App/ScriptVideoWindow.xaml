@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Script to Video Automation"
-        Width="1540"
-        Height="940"
-        MinWidth="1180"
-        MinHeight="760"
+        Width="1650"
+        Height="980"
+        MinWidth="1240"
+        MinHeight="780"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -18,7 +18,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock Text="Script to Video Automation" FontSize="25" FontWeight="Bold"/>
-                <TextBlock Text="ใส่สคริปต์ครั้งเดียว ระบบแบ่งฉาก สร้างเสียงหลายภาษา เจนภาพ/วิดีโอ ทำซับ และส่งเข้าคิว Render"
+                <TextBlock Text="สร้างเสียง ภาพ และวิดีโอจากสคริปต์ด้วย Local AI หรือ Cloud แล้วส่งเข้าคิว Render อัตโนมัติ"
                            Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0"/>
             </StackPanel>
             <Button DockPanel.Dock="Right" Content="ปิด" Click="Close_Click" Style="{StaticResource SecondaryButtonStyle}"/>
@@ -28,16 +28,11 @@
                 BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="34"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="34"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="34"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="34"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Background="#1A2944" CornerRadius="9" Padding="10"><TextBlock Text="1  Script Input" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
@@ -46,7 +41,7 @@
                 <TextBlock Grid.Column="3" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
                 <Border Grid.Column="4" Background="#3A2233" CornerRadius="9" Padding="10"><TextBlock Text="3  Multilingual Voice" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="5" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
-                <Border Grid.Column="6" Background="#233A32" CornerRadius="9" Padding="10"><TextBlock Text="4  AI Image / Video" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <Border Grid.Column="6" Background="#233A32" CornerRadius="9" Padding="10"><TextBlock Text="4  Local / Cloud Visual" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="7" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
                 <Border Grid.Column="8" Background="#283146" CornerRadius="9" Padding="10"><TextBlock Text="5  Captions" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="9" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
@@ -56,9 +51,9 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0.92*"/>
+                <ColumnDefinition Width="0.98*"/>
                 <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1.55*"/>
+                <ColumnDefinition Width="1.62*"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
@@ -70,7 +65,7 @@
                         <TextBox x:Name="TitleTextBox" Text="วิดีโอจากสคริปต์"/>
 
                         <TextBlock Text="สคริปต์" Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0"/>
-                        <TextBox x:Name="ScriptTextBox" Height="190" AcceptsReturn="True" TextWrapping="Wrap"
+                        <TextBox x:Name="ScriptTextBox" Height="170" AcceptsReturn="True" TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto"
                                  Text="ป่าชายเลนเป็นระบบนิเวศที่สำคัญ ช่วยลดแรงกระแทกจากคลื่นและเป็นแหล่งอนุบาลสัตว์น้ำ&#x0a;&#x0a;นอกจากนี้ ป่าชายเลนยังกักเก็บคาร์บอนได้เป็นจำนวนมาก จึงมีบทบาทสำคัญต่อการรับมือการเปลี่ยนแปลงสภาพภูมิอากาศ"/>
 
@@ -107,11 +102,12 @@
                                 </ComboBox>
                                 <TextBlock Text="ผู้ให้บริการเสียง" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
                                 <ComboBox x:Name="VoiceProviderComboBox" SelectedIndex="0" SelectionChanged="ProviderSelectionChanged">
-                                    <ComboBoxItem Content="Windows Local Voice" Tag="windows"/>
+                                    <ComboBoxItem Content="Windows Local Voice — ไม่ใช้ API" Tag="windows"/>
+                                    <ComboBoxItem Content="Piper Local Voice — ไม่ใช้ API" Tag="piper"/>
                                     <ComboBoxItem Content="OpenAI Multilingual Voice" Tag="openai"/>
                                     <ComboBoxItem Content="ไม่สร้างเสียง" Tag="none"/>
                                 </ComboBox>
-                                <TextBlock Text="เสียง" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <TextBlock Text="ชื่อเสียง / โมเดลเสียง" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
                                 <ComboBox x:Name="VoiceComboBox" IsEditable="True" Text="auto">
                                     <ComboBoxItem Content="auto"/>
                                     <ComboBoxItem Content="marin"/>
@@ -136,6 +132,11 @@
                                 <TextBlock Text="AI Visuals" FontWeight="SemiBold" FontSize="16"/>
                                 <CheckBox x:Name="AutoVisualCheckBox" Content="ใช้ภาพ/B-roll จากคลัง Project ก่อน" IsChecked="True" Margin="1,8,0,0"/>
                                 <CheckBox x:Name="SequentialFallbackCheckBox" Content="ถ้าจับคู่คำไม่ได้ ให้เรียงภาพที่เหลือตามลำดับ" IsChecked="True" Margin="20,5,0,0"/>
+                                <TextBlock Text="ผู้ให้บริการภาพ/วิดีโอ" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <ComboBox x:Name="VisualProviderComboBox" SelectedIndex="0" SelectionChanged="ProviderSelectionChanged">
+                                    <ComboBoxItem Content="ComfyUI Local — ไม่ใช้ API Key" Tag="comfyui"/>
+                                    <ComboBoxItem Content="OpenAI Cloud" Tag="openai"/>
+                                </ComboBox>
                                 <TextBlock Text="โหมดภาพประกอบ" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
                                 <ComboBox x:Name="VisualModeComboBox" SelectedIndex="1" SelectionChanged="ProviderSelectionChanged">
                                     <ComboBoxItem Content="ใช้ไฟล์ใน Project เท่านั้น" Tag="local"/>
@@ -145,10 +146,7 @@
                                     <ComboBoxItem Content="เจนวิดีโอ ถ้าล้มให้ใช้ภาพ AI" Tag="video_fallback"/>
                                 </ComboBox>
                                 <Grid Margin="0,5,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="คุณภาพภาพ" Foreground="{StaticResource MutedTextBrush}"/>
                                         <ComboBox x:Name="ImageQualityComboBox" SelectedIndex="1">
@@ -173,9 +171,45 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Background="#071C18" BorderBrush="#1F5A4B" BorderThickness="1" CornerRadius="9" Padding="10" Margin="4,10,4,0">
+                            <StackPanel>
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="Local AI — ไม่ต้องใช้ API Key" FontWeight="SemiBold" FontSize="16"/>
+                                        <TextBlock Text="ComfyUI ใช้ Workflow แบบ Export (API); Piper ใช้ piper.exe และโมเดล .onnx"
+                                                   Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <Button DockPanel.Dock="Right" Content="บันทึก" Click="SaveLocalAiSettings_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                                <TextBlock Text="ComfyUI URL" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <TextBox x:Name="ComfyUiUrlTextBox" Text="http://127.0.0.1:8188"/>
+                                <TextBlock Text="Workflow สร้างภาพ (.json)" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <DockPanel>
+                                    <TextBox x:Name="ImageWorkflowTextBox" DockPanel.Dock="Left"/>
+                                    <Button Content="เลือก" Click="BrowseImageWorkflow_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                                <TextBlock Text="Workflow สร้างวิดีโอ (.json)" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <DockPanel>
+                                    <TextBox x:Name="VideoWorkflowTextBox" DockPanel.Dock="Left"/>
+                                    <Button Content="เลือก" Click="BrowseVideoWorkflow_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                                <TextBlock Text="Piper executable" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <DockPanel>
+                                    <TextBox x:Name="PiperExecutableTextBox" DockPanel.Dock="Left"/>
+                                    <Button Content="เลือก" Click="BrowsePiperExecutable_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                                <TextBlock Text="Piper voice model (.onnx)" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <DockPanel>
+                                    <TextBox x:Name="PiperModelTextBox" DockPanel.Dock="Left"/>
+                                    <Button Content="เลือก" Click="BrowsePiperModel_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                                <TextBlock x:Name="LocalProviderStatusText" Text="กำลังตรวจ Local AI..." TextWrapping="Wrap" Margin="0,7,0,0"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Background="#101A2D" BorderBrush="#304361" BorderThickness="1" CornerRadius="9" Padding="10" Margin="4,10,4,0">
                             <StackPanel>
-                                <TextBlock Text="OpenAI Provider" FontWeight="SemiBold"/>
+                                <TextBlock Text="OpenAI Cloud — ตัวเลือกเสริม" FontWeight="SemiBold"/>
                                 <TextBlock Text="วาง API key ชั่วคราว หรือใช้ OPENAI_API_KEY ใน Windows — โปรแกรมไม่บันทึกคีย์ลง Project"
                                            Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                                 <PasswordBox x:Name="OpenAiApiKeyBox" Margin="4" Padding="8" Background="#070D18" Foreground="White"
@@ -204,11 +238,7 @@
             <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
                     BorderThickness="1" CornerRadius="12" Padding="14">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,9">
                         <StackPanel DockPanel.Dock="Left">
                             <TextBlock Text="แผนฉากและภาพประกอบ" FontSize="18" FontWeight="SemiBold"/>
@@ -225,8 +255,8 @@
                             <DataGridTextColumn Header="เสียงบรรยาย" Binding="{Binding Narration}" Width="1.6*" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Prompt (แก้ได้)" Binding="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" Width="2.0*"/>
                             <DataGridTextColumn Header="ภาพ/วิดีโอ" Binding="{Binding AssetDisplayName}" Width="1.0*" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="ที่มา" Binding="{Binding VisualSourceDisplay}" Width="110" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="สถานะ" Binding="{Binding Status}" Width="130" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="ที่มา" Binding="{Binding VisualSourceDisplay}" Width="125" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="สถานะ" Binding="{Binding Status}" Width="145" IsReadOnly="True"/>
                             <DataGridTextColumn Header="เวลา" Binding="{Binding DurationDisplay}" Width="72" IsReadOnly="True"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -241,7 +271,7 @@
             </Border>
         </Grid>
 
-        <TextBlock Grid.Row="3" Text="ระบบไม่แก้ไขไฟล์ต้นฉบับ ภาพ/วิดีโอที่สร้างจะเก็บแบบ Versioned ใน Project และ Output จะสร้างชื่อใหม่เสมอ"
+        <TextBlock Grid.Row="3" Text="Local AI ทำงานผ่าน localhost และไฟล์โมเดลในเครื่อง ไม่ใช้ API Key ไม่แก้ต้นฉบับ และเก็บ Output แบบ Versioned"
                    Foreground="{StaticResource MutedTextBrush}" Margin="4,10,0,0"/>
     </Grid>
 </Window>
