@@ -23,11 +23,43 @@ public sealed class TemplateVideoJobFactory
             pronunciationDictionary: null,
             cancellationToken);
 
-    public async Task<JobDocument> CreateScriptVideoAsync(
+    public Task<JobDocument> CreateScriptVideoAsync(
         ProjectDocument project,
         TemplateVideoRecipe recipe,
         IReadOnlyDictionary<int, string>? sceneAssets,
         WindowsVoiceoverOptions? voiceoverOptions,
+        string? pronunciationDictionary,
+        CancellationToken cancellationToken = default)
+    {
+        ISpeechSynthesisProvider? provider = recipe.GenerateWindowsVoiceover
+            ? new WindowsSpeechSynthesisProvider()
+            : null;
+        SpeechSynthesisRequest? request = provider is null
+            ? null
+            : new SpeechSynthesisRequest
+            {
+                Language = voiceoverOptions?.Language ?? recipe.VoiceLanguage,
+                Voice = voiceoverOptions?.PreferredVoiceName ?? "auto",
+                Rate = voiceoverOptions?.Rate ?? 0,
+                Volume = voiceoverOptions?.Volume ?? 100,
+                Speed = 1.0
+            };
+        return CreateScriptVideoWithProviderAsync(
+            project,
+            recipe,
+            sceneAssets,
+            provider,
+            request,
+            pronunciationDictionary,
+            cancellationToken);
+    }
+
+    public async Task<JobDocument> CreateScriptVideoWithProviderAsync(
+        ProjectDocument project,
+        TemplateVideoRecipe recipe,
+        IReadOnlyDictionary<int, string>? sceneAssets,
+        ISpeechSynthesisProvider? speechProvider,
+        SpeechSynthesisRequest? speechRequest,
         string? pronunciationDictionary,
         CancellationToken cancellationToken = default)
     {
@@ -51,18 +83,26 @@ public sealed class TemplateVideoJobFactory
             await StageSceneAssetsAsync(project.RootPath, directory, sceneAssets, stagedRecipe.Sections.Count, cancellationToken);
 
         string? voiceoverPath = null;
-        if (stagedRecipe.GenerateWindowsVoiceover)
+        if (speechProvider is not null)
         {
+            var availability = await speechProvider.GetAvailabilityAsync(cancellationToken);
+            if (!availability.IsReady)
+                throw new InvalidOperationException(availability.Message);
+
             voiceoverPath = Path.Combine(directory, "voiceover.wav");
             var narration = string.Join(
                 Environment.NewLine,
                 stagedRecipe.Sections.Select(section => $"{section.Heading}. {section.Body}"));
             narration = new ScriptVideoPlanner().ApplyPronunciationDictionary(narration, pronunciationDictionary);
-            await new WindowsVoiceoverService().GenerateAsync(
-                narration,
-                voiceoverPath,
-                voiceoverOptions ?? new WindowsVoiceoverOptions { Language = stagedRecipe.VoiceLanguage },
-                cancellationToken);
+            var effectiveRequest = (speechRequest ?? new SpeechSynthesisRequest()) with
+            {
+                Text = narration,
+                OutputPath = voiceoverPath,
+                Language = string.IsNullOrWhiteSpace(speechRequest?.Language)
+                    ? stagedRecipe.VoiceLanguage
+                    : speechRequest!.Language
+            };
+            await speechProvider.GenerateAsync(effectiveRequest, cancellationToken);
 
             try
             {

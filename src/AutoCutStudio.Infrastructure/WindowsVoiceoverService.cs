@@ -38,12 +38,10 @@ public sealed class WindowsVoiceoverService
         var escapedOutput = EscapePowerShellLiteral(outputFullPath);
         var escapedTextPath = EscapePowerShellLiteral(textPath);
         var preferredVoice = EscapePowerShellLiteral(options.PreferredVoiceName ?? string.Empty);
-        var culturePrefix = options.Language.Trim().ToLowerInvariant() switch
-        {
-            "th" or "th-th" => "th",
-            "en" or "en-us" or "en-gb" => "en",
-            _ => string.Empty
-        };
+        var language = options.Language.Trim().ToLowerInvariant();
+        var culturePrefix = language is "" or "auto"
+            ? string.Empty
+            : language.Split('-', StringSplitOptions.RemoveEmptyEntries)[0];
         var escapedCulture = EscapePowerShellLiteral(culturePrefix);
         var rate = Math.Clamp(options.Rate, -10, 10);
         var volume = Math.Clamp(options.Volume, 0, 100);
@@ -58,13 +56,22 @@ public sealed class WindowsVoiceoverService
                     $match = $voice.GetInstalledVoices() |
                         Where-Object { $_.Enabled -and $_.VoiceInfo.Name -eq $preferred } |
                         Select-Object -First 1
-                    if ($null -ne $match) { $voice.SelectVoice($match.VoiceInfo.Name) }
+                    if ($null -eq $match) {
+                        throw "ไม่พบ Windows voice ชื่อ: $preferred"
+                    }
+                    $voice.SelectVoice($match.VoiceInfo.Name)
                 }
                 elseif (-not [string]::IsNullOrWhiteSpace($culturePrefix)) {
                     $match = $voice.GetInstalledVoices() |
                         Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name.ToLowerInvariant().StartsWith($culturePrefix) } |
                         Select-Object -First 1
-                    if ($null -ne $match) { $voice.SelectVoice($match.VoiceInfo.Name) }
+                    if ($null -eq $match) {
+                        $installed = ($voice.GetInstalledVoices() |
+                            Where-Object { $_.Enabled } |
+                            ForEach-Object { $_.VoiceInfo.Culture.Name + ':' + $_.VoiceInfo.Name }) -join ', '
+                        throw "ไม่พบ Windows voice สำหรับภาษา $culturePrefix | Installed: $installed"
+                    }
+                    $voice.SelectVoice($match.VoiceInfo.Name)
                 }
                 $voice.Rate = {{rate}}
                 $voice.Volume = {{volume}}

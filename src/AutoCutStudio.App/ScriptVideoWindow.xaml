@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Script to Video Automation"
-        Width="1420"
-        Height="880"
-        MinWidth="1120"
-        MinHeight="720"
+        Width="1540"
+        Height="940"
+        MinWidth="1180"
+        MinHeight="760"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -18,7 +18,7 @@
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock Text="Script to Video Automation" FontSize="25" FontWeight="Bold"/>
-                <TextBlock Text="ใส่สคริปต์ครั้งเดียว ระบบแบ่งฉาก สร้างเสียง เลือกภาพ ทำซับ และส่งเข้าคิว Render"
+                <TextBlock Text="ใส่สคริปต์ครั้งเดียว ระบบแบ่งฉาก สร้างเสียงหลายภาษา เจนภาพ/วิดีโอ ทำซับ และส่งเข้าคิว Render"
                            Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0"/>
             </StackPanel>
             <Button DockPanel.Dock="Right" Content="ปิด" Click="Close_Click" Style="{StaticResource SecondaryButtonStyle}"/>
@@ -44,9 +44,9 @@
                 <TextBlock Grid.Column="1" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
                 <Border Grid.Column="2" Background="#291E4A" CornerRadius="9" Padding="10"><TextBlock Text="2  Scene Planner" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="3" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
-                <Border Grid.Column="4" Background="#3A2233" CornerRadius="9" Padding="10"><TextBlock Text="3  Local Voice" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <Border Grid.Column="4" Background="#3A2233" CornerRadius="9" Padding="10"><TextBlock Text="3  Multilingual Voice" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="5" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
-                <Border Grid.Column="6" Background="#233A32" CornerRadius="9" Padding="10"><TextBlock Text="4  Auto Visual" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <Border Grid.Column="6" Background="#233A32" CornerRadius="9" Padding="10"><TextBlock Text="4  AI Image / Video" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="7" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
                 <Border Grid.Column="8" Background="#283146" CornerRadius="9" Padding="10"><TextBlock Text="5  Captions" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
                 <TextBlock Grid.Column="9" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
@@ -56,9 +56,9 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0.9*"/>
+                <ColumnDefinition Width="0.92*"/>
                 <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1.35*"/>
+                <ColumnDefinition Width="1.55*"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
@@ -70,7 +70,7 @@
                         <TextBox x:Name="TitleTextBox" Text="วิดีโอจากสคริปต์"/>
 
                         <TextBlock Text="สคริปต์" Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0"/>
-                        <TextBox x:Name="ScriptTextBox" Height="240" AcceptsReturn="True" TextWrapping="Wrap"
+                        <TextBox x:Name="ScriptTextBox" Height="190" AcceptsReturn="True" TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto"
                                  Text="ป่าชายเลนเป็นระบบนิเวศที่สำคัญ ช่วยลดแรงกระแทกจากคลื่นและเป็นแหล่งอนุบาลสัตว์น้ำ&#x0a;&#x0a;นอกจากนี้ ป่าชายเลนยังกักเก็บคาร์บอนได้เป็นจำนวนมาก จึงมีบทบาทสำคัญต่อการรับมือการเปลี่ยนแปลงสภาพภูมิอากาศ"/>
 
@@ -85,28 +85,117 @@
                             <ComboBoxItem Content="Square 1:1" Tag="square_feed"/>
                         </ComboBox>
 
-                        <CheckBox x:Name="VoiceoverCheckBox" Content="สร้างเสียงบรรยายด้วยเสียงที่ติดตั้งใน Windows" IsChecked="True" Margin="5,10,0,0"/>
-                        <DockPanel Margin="4,5,4,0">
-                            <TextBlock Text="ความเร็วเสียง" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="VoiceRateValueText" DockPanel.Dock="Right" Text="0" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </DockPanel>
-                        <Slider x:Name="VoiceRateSlider" Minimum="-4" Maximum="4" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="VoiceRateSlider_ValueChanged" Margin="5,2"/>
+                        <Border Background="#0A1221" BorderBrush="#263752" BorderThickness="1" CornerRadius="9" Padding="10" Margin="4,10,4,0">
+                            <StackPanel>
+                                <TextBlock Text="Voice &amp; Language" FontWeight="SemiBold" FontSize="16"/>
+                                <CheckBox x:Name="VoiceoverCheckBox" Content="สร้างเสียงบรรยาย" IsChecked="True" Margin="1,8,0,0"/>
+                                <TextBlock Text="ภาษา" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <ComboBox x:Name="LanguageComboBox" SelectedIndex="0">
+                                    <ComboBoxItem Content="Auto Detect" Tag="auto"/>
+                                    <ComboBoxItem Content="ไทย" Tag="th"/>
+                                    <ComboBoxItem Content="English" Tag="en"/>
+                                    <ComboBoxItem Content="日本語" Tag="ja"/>
+                                    <ComboBoxItem Content="中文" Tag="zh"/>
+                                    <ComboBoxItem Content="한국어" Tag="ko"/>
+                                    <ComboBoxItem Content="Español" Tag="es"/>
+                                    <ComboBoxItem Content="Français" Tag="fr"/>
+                                    <ComboBoxItem Content="Deutsch" Tag="de"/>
+                                    <ComboBoxItem Content="Português" Tag="pt"/>
+                                    <ComboBoxItem Content="Italiano" Tag="it"/>
+                                    <ComboBoxItem Content="العربية" Tag="ar"/>
+                                    <ComboBoxItem Content="Русский" Tag="ru"/>
+                                </ComboBox>
+                                <TextBlock Text="ผู้ให้บริการเสียง" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <ComboBox x:Name="VoiceProviderComboBox" SelectedIndex="0" SelectionChanged="ProviderSelectionChanged">
+                                    <ComboBoxItem Content="Windows Local Voice" Tag="windows"/>
+                                    <ComboBoxItem Content="OpenAI Multilingual Voice" Tag="openai"/>
+                                    <ComboBoxItem Content="ไม่สร้างเสียง" Tag="none"/>
+                                </ComboBox>
+                                <TextBlock Text="เสียง" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <ComboBox x:Name="VoiceComboBox" IsEditable="True" Text="auto">
+                                    <ComboBoxItem Content="auto"/>
+                                    <ComboBoxItem Content="marin"/>
+                                    <ComboBoxItem Content="cedar"/>
+                                    <ComboBoxItem Content="alloy"/>
+                                    <ComboBoxItem Content="coral"/>
+                                    <ComboBoxItem Content="nova"/>
+                                    <ComboBoxItem Content="onyx"/>
+                                    <ComboBoxItem Content="shimmer"/>
+                                </ComboBox>
+                                <DockPanel Margin="0,7,0,0">
+                                    <TextBlock Text="ความเร็วเสียง" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="VoiceSpeedValueText" DockPanel.Dock="Right" Text="1.00×" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <Slider x:Name="VoiceSpeedSlider" Minimum="0.5" Maximum="2.0" Value="1.0" TickFrequency="0.1"
+                                        ValueChanged="VoiceSpeedSlider_ValueChanged" Margin="1,2"/>
+                            </StackPanel>
+                        </Border>
 
-                        <CheckBox x:Name="AutoVisualCheckBox" Content="เลือกภาพและ B-roll จากคลังของ Project อัตโนมัติ" IsChecked="True" Margin="5,8,0,0"/>
-                        <CheckBox x:Name="SequentialFallbackCheckBox" Content="ถ้าจับคู่คำไม่ได้ ให้เรียงภาพที่เหลือตามลำดับ" IsChecked="True" Margin="24,5,0,0"/>
-                        <DockPanel Margin="4,5,4,0">
-                            <TextBox x:Name="AssetsDirectoryTextBox" IsReadOnly="True" DockPanel.Dock="Left"/>
-                            <Button Content="เปิดคลังภาพ" Click="OpenAssets_Click" Style="{StaticResource CompactButtonStyle}"/>
-                        </DockPanel>
+                        <Border Background="#0A1221" BorderBrush="#263752" BorderThickness="1" CornerRadius="9" Padding="10" Margin="4,10,4,0">
+                            <StackPanel>
+                                <TextBlock Text="AI Visuals" FontWeight="SemiBold" FontSize="16"/>
+                                <CheckBox x:Name="AutoVisualCheckBox" Content="ใช้ภาพ/B-roll จากคลัง Project ก่อน" IsChecked="True" Margin="1,8,0,0"/>
+                                <CheckBox x:Name="SequentialFallbackCheckBox" Content="ถ้าจับคู่คำไม่ได้ ให้เรียงภาพที่เหลือตามลำดับ" IsChecked="True" Margin="20,5,0,0"/>
+                                <TextBlock Text="โหมดภาพประกอบ" Foreground="{StaticResource MutedTextBrush}" Margin="0,7,0,0"/>
+                                <ComboBox x:Name="VisualModeComboBox" SelectedIndex="1" SelectionChanged="ProviderSelectionChanged">
+                                    <ComboBoxItem Content="ใช้ไฟล์ใน Project เท่านั้น" Tag="local"/>
+                                    <ComboBoxItem Content="เจนภาพเฉพาะฉากที่ไม่มีภาพ" Tag="image_missing"/>
+                                    <ComboBoxItem Content="เจนภาพใหม่ทุกฉาก" Tag="image_all"/>
+                                    <ComboBoxItem Content="เจนวิดีโอใหม่ทุกฉาก" Tag="video_all"/>
+                                    <ComboBoxItem Content="เจนวิดีโอ ถ้าล้มให้ใช้ภาพ AI" Tag="video_fallback"/>
+                                </ComboBox>
+                                <Grid Margin="0,5,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="คุณภาพภาพ" Foreground="{StaticResource MutedTextBrush}"/>
+                                        <ComboBox x:Name="ImageQualityComboBox" SelectedIndex="1">
+                                            <ComboBoxItem Content="Low" Tag="low"/>
+                                            <ComboBoxItem Content="Medium" Tag="medium"/>
+                                            <ComboBoxItem Content="High" Tag="high"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="ความยาววิดีโอต่อฉาก" Foreground="{StaticResource MutedTextBrush}"/>
+                                        <ComboBox x:Name="VideoSecondsComboBox" SelectedIndex="0">
+                                            <ComboBoxItem Content="4 วินาที" Tag="4"/>
+                                            <ComboBoxItem Content="8 วินาที" Tag="8"/>
+                                            <ComboBoxItem Content="12 วินาที" Tag="12"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+                                <DockPanel Margin="0,5,0,0">
+                                    <TextBox x:Name="AssetsDirectoryTextBox" IsReadOnly="True" DockPanel.Dock="Left"/>
+                                    <Button Content="เปิดคลังภาพ" Click="OpenAssets_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#101A2D" BorderBrush="#304361" BorderThickness="1" CornerRadius="9" Padding="10" Margin="4,10,4,0">
+                            <StackPanel>
+                                <TextBlock Text="OpenAI Provider" FontWeight="SemiBold"/>
+                                <TextBlock Text="วาง API key ชั่วคราว หรือใช้ OPENAI_API_KEY ใน Windows — โปรแกรมไม่บันทึกคีย์ลง Project"
+                                           Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <PasswordBox x:Name="OpenAiApiKeyBox" Margin="4" Padding="8" Background="#070D18" Foreground="White"
+                                             BorderBrush="#304361" PasswordChanged="OpenAiApiKeyBox_PasswordChanged"/>
+                                <DockPanel>
+                                    <TextBlock x:Name="ProviderStatusText" Text="กำลังตรวจ Provider..." TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <Button DockPanel.Dock="Right" Content="ตรวจ Provider" Click="RefreshProviders_Click" Style="{StaticResource CompactButtonStyle}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Text="พจนานุกรมคำอ่าน — หนึ่งรายการต่อบรรทัด เช่น T-VER=ที เวอร์"
                                    Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0" TextWrapping="Wrap"/>
-                        <TextBox x:Name="PronunciationTextBox" Height="82" AcceptsReturn="True" TextWrapping="Wrap"
+                        <TextBox x:Name="PronunciationTextBox" Height="72" AcceptsReturn="True" TextWrapping="Wrap"
                                  Text="T-VER=ที เวอร์&#x0a;GIS=จี ไอ เอส&#x0a;MRV=เอ็ม อาร์ วี"/>
 
                         <WrapPanel Margin="0,10,0,0">
                             <Button x:Name="PlanButton" Content="วิเคราะห์และแบ่งฉาก" Click="Plan_Click" Style="{StaticResource SecondaryButtonStyle}"/>
-                            <Button x:Name="CreateButton" Content="สร้างวิดีโออัตโนมัติ" Click="Create_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                            <Button x:Name="GenerateVisualsButton" Content="เจนภาพ/วิดีโอ" Click="GenerateVisuals_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                            <Button x:Name="CreateButton" Content="Generate All + สร้างวิดีโอ" Click="Create_Click" Style="{StaticResource PrimaryButtonStyle}"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -128,15 +217,17 @@
                         <Button DockPanel.Dock="Right" Content="เพิ่มภาพ/B-roll" Click="AddAssets_Click" Style="{StaticResource CompactButtonStyle}"/>
                     </DockPanel>
 
-                    <DataGrid x:Name="ScenesGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
-                              AlternationCount="2" SelectionMode="Single">
+                    <DataGrid x:Name="ScenesGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="False"
+                              AlternationCount="2" SelectionMode="Single" CanUserAddRows="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="#" Binding="{Binding DisplayIndex}" Width="42"/>
-                            <DataGridTextColumn Header="หัวข้อฉาก" Binding="{Binding Heading}" Width="1.2*"/>
-                            <DataGridTextColumn Header="เสียงบรรยาย" Binding="{Binding Narration}" Width="2.2*"/>
-                            <DataGridTextColumn Header="ภาพ/B-roll" Binding="{Binding AssetDisplayName}" Width="1.1*"/>
-                            <DataGridTextColumn Header="ที่มา" Binding="{Binding VisualSourceDisplay}" Width="100"/>
-                            <DataGridTextColumn Header="เวลา" Binding="{Binding DurationDisplay}" Width="72"/>
+                            <DataGridTextColumn Header="#" Binding="{Binding DisplayIndex}" Width="42" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="หัวข้อ" Binding="{Binding Heading}" Width="1.0*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="เสียงบรรยาย" Binding="{Binding Narration}" Width="1.6*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Prompt (แก้ได้)" Binding="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" Width="2.0*"/>
+                            <DataGridTextColumn Header="ภาพ/วิดีโอ" Binding="{Binding AssetDisplayName}" Width="1.0*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="ที่มา" Binding="{Binding VisualSourceDisplay}" Width="110" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="สถานะ" Binding="{Binding Status}" Width="130" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="เวลา" Binding="{Binding DurationDisplay}" Width="72" IsReadOnly="True"/>
                         </DataGrid.Columns>
                     </DataGrid>
 
@@ -150,7 +241,7 @@
             </Border>
         </Grid>
 
-        <TextBlock Grid.Row="3" Text="ระบบไม่แก้ไขไฟล์ต้นฉบับ ภาพที่ใช้จะถูกคัดลอกเข้า Job และ Output จะสร้างชื่อเวอร์ชันใหม่เสมอ"
+        <TextBlock Grid.Row="3" Text="ระบบไม่แก้ไขไฟล์ต้นฉบับ ภาพ/วิดีโอที่สร้างจะเก็บแบบ Versioned ใน Project และ Output จะสร้างชื่อใหม่เสมอ"
                    Foreground="{StaticResource MutedTextBrush}" Margin="4,10,0,0"/>
     </Grid>
 </Window>
