@@ -1,0 +1,187 @@
+name: AutoCut Studio Rebuild CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "AutoCutStudio-Rebuild/**"
+      - ".github/workflows/autocut-rebuild-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: AutoCutStudio-Rebuild
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install FFmpeg
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore AutoCutStudio.Rebuild.csproj
+          dotnet restore tests/AutoCutStudio.Rebuild.Tests.csproj
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build AutoCutStudio.Rebuild.csproj -c Release --no-restore
+
+      - name: Unit tests
+        shell: pwsh
+        run: dotnet test tests/AutoCutStudio.Rebuild.Tests.csproj -c Release --logger "trx;LogFileName=rebuild-tests.trx"
+
+      - name: Verify asInvoker
+        shell: pwsh
+        run: |
+          $manifest = Get-Content app.manifest -Raw
+          if ($manifest -notmatch 'requestedExecutionLevel level="asInvoker"') { throw "Manifest is not asInvoker." }
+
+      - name: Publish Worker-capable portable EXE
+        shell: pwsh
+        run: dotnet publish AutoCutStudio.Rebuild.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o artifacts/worker-test
+
+      - name: Real Worker render with Thai path and spaces
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $PWD "artifacts/ทดสอบ path มีช่องว่าง"
+          $jobs = Join-Path $root "jobs/11111111111111111111111111111111"
+          $exports = Join-Path $root "exports"
+          New-Item $jobs,$exports -ItemType Directory -Force | Out-Null
+          $input1 = Join-Path $root "คลิป หนึ่ง.mp4"
+          $input2 = Join-Path $root "คลิป สอง.mp4"
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30" -f lavfi -i "sine=frequency=440:sample_rate=48000" -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac $input1
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30" -f lavfi -i "sine=frequency=660:sample_rate=48000" -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac $input2
+          if ($LASTEXITCODE -ne 0) { throw "Could not create test media." }
+          $output = Join-Path $exports "output.mp4"
+          $job = [ordered]@{
+            job_id = "11111111-1111-1111-1111-111111111111"
+            kind = 0
+            state = 1
+            progress = 0
+            project_root = $root
+            output_path = $output
+            clips = @(
+              [ordered]@{ source_path = $input1; source_in_seconds = 0.25; source_out_seconds = 1.75 },
+              [ordered]@{ source_path = $input2; source_in_seconds = 0.10; source_out_seconds = 1.60 }
+            )
+            options = @{}
+            created_at = [DateTimeOffset]::UtcNow.ToString("O")
+          }
+          $jobPath = Join-Path $jobs "job.json"
+          $job | ConvertTo-Json -Depth 8 | Set-Content $jobPath -Encoding utf8
+          $env:AUTOCUT_REBUILD_FFMPEG = (Get-Command ffmpeg.exe).Source
+          $env:AUTOCUT_REBUILD_FFPROBE = (Get-Command ffprobe.exe).Source
+          $workerInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $workerInfo.FileName = (Resolve-Path "artifacts/worker-test/AutoCutStudio.Rebuild.exe").Path
+          $workerInfo.UseShellExecute = $false
+          $workerInfo.ArgumentList.Add("--worker")
+          $workerInfo.ArgumentList.Add($jobPath)
+          $workerProcess = [System.Diagnostics.Process]::Start($workerInfo)
+          if ($null -eq $workerProcess) { throw "Worker process did not start." }
+          $workerProcess.WaitForExit()
+          if ($workerProcess.ExitCode -ne 0) {
+            $errorLog = Join-Path $jobs "error.log"
+            if (Test-Path $errorLog -PathType Leaf) { Get-Content $errorLog }
+            Get-Content $jobPath
+            throw "Worker render failed with exit code $($workerProcess.ExitCode)."
+          }
+          if (-not (Test-Path $output -PathType Leaf)) {
+            $errorLog = Join-Path $jobs "error.log"
+            if (Test-Path $errorLog -PathType Leaf) { Get-Content $errorLog }
+            Get-Content $jobPath
+            throw "Output is missing after Worker completed."
+          }
+          $probe = ffprobe -v error -show_entries stream=codec_type -show_entries format=duration -of json $output | ConvertFrom-Json
+          $types = @($probe.streams | ForEach-Object { $_.codec_type })
+          if ($types -notcontains "video" -or $types -notcontains "audio") { throw "Output streams are invalid." }
+          $duration = [double]$probe.format.duration
+          if ($duration -lt 2.8 -or $duration -gt 3.3) { throw "Unexpected duration: $duration" }
+          $jobAfter = Get-Content $jobPath -Raw | ConvertFrom-Json
+          if ($jobAfter.state -ne 7) { throw "Job did not finish in Completed state: $($jobAfter.state)" }
+
+      - name: Build portable package
+        shell: pwsh
+        run: ./scripts/build-portable.ps1
+
+      - name: Verify portable ZIP with bundled binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $zip = "artifacts/AutoCutStudio-Rebuild-win-x64.zip"
+          $checksum = "artifacts/AutoCutStudio-Rebuild-win-x64.zip.sha256"
+          if (-not (Test-Path $zip -PathType Leaf) -or -not (Test-Path $checksum -PathType Leaf)) { throw "Portable artifact is missing." }
+          $declared = ((Get-Content $checksum -Raw).Trim() -split "\s+")[0]
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($declared -ne $actual) { throw "SHA-256 mismatch." }
+
+          $verify = Join-Path $env:RUNNER_TEMP "autocut-rebuild-portable"
+          Remove-Item $verify -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive $zip $verify -Force
+          $app = Join-Path $verify "AutoCutStudio.Rebuild.exe"
+          $bundledFfmpeg = Join-Path $verify "tools\ffmpeg\ffmpeg.exe"
+          $bundledFfprobe = Join-Path $verify "tools\ffmpeg\ffprobe.exe"
+          $ffmpegManifest = Join-Path $verify "third_party\ffmpeg\bundle-manifest.json"
+
+          foreach ($file in @($app, $bundledFfmpeg, $bundledFfprobe, $ffmpegManifest)) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Portable file is missing: $file" }
+          }
+          if ((Get-Item $bundledFfmpeg).Length -lt 1MB -or (Get-Item $bundledFfprobe).Length -lt 1MB) {
+            throw "Portable package contains a shim instead of real FFmpeg binaries."
+          }
+          & $bundledFfmpeg -version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ffmpeg.exe failed to start." }
+          & $bundledFfprobe -version
+          if ($LASTEXITCODE -ne 0) { throw "Bundled ffprobe.exe failed to start." }
+
+          $smokeDirectory = Join-Path $verify "ทดสอบ portable มีช่องว่าง"
+          New-Item $smokeDirectory -ItemType Directory -Force | Out-Null
+          $smokeMedia = Join-Path $smokeDirectory "ผลทดสอบ.mp4"
+          & $bundledFfmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=320x180:rate=25" -f lavfi -i "sine=frequency=440:sample_rate=48000" -t 1.5 -c:v libx264 -pix_fmt yuv420p -c:a aac $smokeMedia
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $smokeMedia -PathType Leaf)) { throw "Bundled FFmpeg could not create real test media." }
+          $smokeProbe = & $bundledFfprobe -v error -show_entries stream=codec_type -show_entries format=duration -of json $smokeMedia | ConvertFrom-Json
+          $smokeTypes = @($smokeProbe.streams | ForEach-Object { $_.codec_type })
+          if ($smokeTypes -notcontains "video" -or $smokeTypes -notcontains "audio") { throw "Bundled FFprobe did not detect valid streams." }
+
+          $doctorInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $doctorInfo.FileName = $app
+          $doctorInfo.UseShellExecute = $false
+          $doctorInfo.ArgumentList.Add("--doctor")
+          $doctorProcess = [System.Diagnostics.Process]::Start($doctorInfo)
+          if ($null -eq $doctorProcess) { throw "Portable doctor process did not start." }
+          $doctorProcess.WaitForExit()
+          if ($doctorProcess.ExitCode -ne 0) { throw "Portable doctor failed with exit code $($doctorProcess.ExitCode)." }
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-Rebuild-win-x64
+          path: |
+            AutoCutStudio-Rebuild/artifacts/AutoCutStudio-Rebuild-win-x64.zip
+            AutoCutStudio-Rebuild/artifacts/AutoCutStudio-Rebuild-win-x64.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-Rebuild-test-results
+          path: "AutoCutStudio-Rebuild/**/TestResults/*.trx"
+          if-no-files-found: warn
