@@ -13,6 +13,7 @@ public partial class App : Application
             if (MainWindow is MainWindow window)
             {
                 window.EnableVisualAutomationUi();
+                window.EnableScriptVideoUi();
                 window.EnableAutomaticEditingUi();
                 window.EnableSpeechEditingUi();
                 window.EnableSocialAutomationUi();
