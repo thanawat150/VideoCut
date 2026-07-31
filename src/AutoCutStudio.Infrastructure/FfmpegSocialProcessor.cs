@@ -90,9 +90,7 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
             Action = "render_social_clip",
             Status = AgentStatuses.Rendering,
             Progress = 0,
-            Message = recipe.BrollOverlays.Count == 0
-                ? $"เริ่มสร้างคลิป {recipe.OutputWidth}×{recipe.OutputHeight} ด้วย FFmpeg"
-                : $"เริ่มสร้างคลิปพร้อม B-roll {recipe.BrollOverlays.Count} ช่วง",
+            Message = BuildStartMessage(recipe),
             InputPath = input,
             OutputPath = output
         });
@@ -127,7 +125,10 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
                     long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var microseconds))
                 {
                     var seconds = microseconds / 1_000_000d;
-                    var percentage = Math.Clamp(seconds / Math.Max(0.001, job.ExpectedDurationSeconds) * 100, 0, 99.9);
+                    var percentage = Math.Clamp(
+                        seconds / Math.Max(0.001, job.ExpectedDurationSeconds) * 100,
+                        0,
+                        99.9);
                     state.Progress = percentage;
                     var rounded = (int)Math.Floor(percentage);
                     if (rounded <= lastRounded)
@@ -138,7 +139,10 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
                     lastRounded = rounded;
                     double? eta = percentage <= 0.1
                         ? null
-                        : Math.Max(0, stopwatch.Elapsed.TotalSeconds / (percentage / 100) - stopwatch.Elapsed.TotalSeconds);
+                        : Math.Max(
+                            0,
+                            stopwatch.Elapsed.TotalSeconds / (percentage / 100) -
+                            stopwatch.Elapsed.TotalSeconds);
                     await update(new JobProgress
                     {
                         JobId = job.JobId,
@@ -212,11 +216,7 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
             Action = "render_social_clip",
             Status = AgentStatuses.Completed,
             Progress = 100,
-            Message = recipe.BrollOverlays.Count > 0
-                ? $"สร้าง Social Clip พร้อม B-roll {recipe.BrollOverlays.Count} ช่วงสำเร็จ"
-                : recipe.BurnCaptions
-                    ? "สร้าง Social Clip และ Burn Caption สำเร็จ"
-                    : "สร้าง Social Clip สำเร็จ",
+            Message = BuildCompletedMessage(recipe),
             InputPath = input,
             OutputPath = output
         });
@@ -269,19 +269,34 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
         var scale = recipe.AspectStrategy == "fit_pad"
             ? $"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black"
             : $"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}";
+        var videoEnhancement = FfmpegEnhancedProcessor.BuildVideoFilters(recipe);
+        var sourceVideoChain = string.IsNullOrWhiteSpace(videoEnhancement)
+            ? scale
+            : $"{scale},{videoEnhancement}";
+        var audioEnhancement = FfmpegEnhancedProcessor.BuildAudioFilters(recipe);
 
         if (recipe.BrollOverlays.Count == 0)
         {
-            var filters = new List<string> { scale };
+            var filters = new List<string> { sourceVideoChain };
             if (recipe.BurnCaptions)
             {
                 filters.Add("ass=filename='captions.ass'");
             }
-            arguments.AddRange(["-t", FormatSeconds(segment.DurationSeconds), "-vf", string.Join(',', filters)]);
+            arguments.AddRange([
+                "-t", FormatSeconds(segment.DurationSeconds),
+                "-vf", string.Join(',', filters)
+            ]);
+            if (job.ExpectedInputHasAudio && !string.IsNullOrWhiteSpace(audioEnhancement))
+            {
+                arguments.AddRange(["-af", audioEnhancement]);
+            }
         }
         else
         {
-            var filters = new List<string> { $"[0:v:0]{scale},setpts=PTS-STARTPTS[base0]" };
+            var filters = new List<string>
+            {
+                $"[0:v:0]{sourceVideoChain},setpts=PTS-STARTPTS[base0]"
+            };
             var current = "base0";
             for (var index = 0; index < recipe.BrollOverlays.Count; index++)
             {
@@ -304,6 +319,13 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
                 videoMap = "captioned";
             }
 
+            string? audioMap = null;
+            if (job.ExpectedInputHasAudio && !string.IsNullOrWhiteSpace(audioEnhancement))
+            {
+                filters.Add($"[0:a:0]{audioEnhancement}[enhanced_audio]");
+                audioMap = "[enhanced_audio]";
+            }
+
             arguments.AddRange([
                 "-t", FormatSeconds(segment.DurationSeconds),
                 "-filter_complex", string.Join(';', filters),
@@ -311,7 +333,7 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
             ]);
             if (job.ExpectedInputHasAudio)
             {
-                arguments.AddRange(["-map", "0:a:0?"]);
+                arguments.AddRange(["-map", audioMap ?? "0:a:0?"]);
             }
         }
 
@@ -327,14 +349,48 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
         ]);
         if (job.ExpectedInputHasAudio)
         {
-            arguments.AddRange(["-c:a", "aac", "-b:a", $"{Math.Clamp(recipe.AudioBitrateKbps, 64, 320)}k"]);
+            arguments.AddRange([
+                "-c:a", "aac",
+                "-b:a", $"{Math.Clamp(recipe.AudioBitrateKbps, 64, 320)}k"
+            ]);
         }
         else
         {
             arguments.Add("-an");
         }
-        arguments.AddRange(["-movflags", "+faststart", "-progress", "pipe:1", "-nostats", output]);
+        arguments.AddRange([
+            "-movflags", "+faststart",
+            "-progress", "pipe:1",
+            "-nostats",
+            output
+        ]);
         return arguments;
+    }
+
+    private static string BuildStartMessage(RenderRecipe recipe)
+    {
+        var features = new List<string>();
+        if (recipe.BrollOverlays.Count > 0) features.Add($"B-roll {recipe.BrollOverlays.Count} ช่วง");
+        if (recipe.BurnCaptions) features.Add("Caption Safe Zone");
+        if (recipe.Stabilize) features.Add("Stabilize");
+        if (recipe.ColorPreset != ColorPresets.None) features.Add($"Color {recipe.ColorPreset}");
+        if (recipe.AudioEnhancementPreset != AudioEnhancementPresets.None) features.Add("Voice Enhancement");
+        return features.Count == 0
+            ? $"เริ่มสร้างคลิป {recipe.OutputWidth}×{recipe.OutputHeight} ด้วย FFmpeg"
+            : $"เริ่มสร้าง Social Clip: {string.Join(", ", features)}";
+    }
+
+    private static string BuildCompletedMessage(RenderRecipe recipe)
+    {
+        var features = new List<string>();
+        if (recipe.BrollOverlays.Count > 0) features.Add($"B-roll {recipe.BrollOverlays.Count} ช่วง");
+        if (recipe.BurnCaptions) features.Add("Caption");
+        if (recipe.Stabilize) features.Add("Stabilization");
+        if (recipe.ColorPreset != ColorPresets.None) features.Add("Color");
+        if (recipe.AudioEnhancementPreset != AudioEnhancementPresets.None) features.Add("Voice Enhancement");
+        return features.Count == 0
+            ? "สร้าง Social Clip สำเร็จ"
+            : $"สร้าง Social Clip พร้อม {string.Join(", ", features)} สำเร็จ";
     }
 
     private static async Task MonitorControlAsync(
@@ -404,7 +460,8 @@ public sealed class FfmpegSocialProcessor : IVideoProcessor
         "ffmpeg " + string.Join(' ', arguments.Select(argument =>
             Path.IsPathRooted(argument) ? "<media-path>" : argument));
 
-    private static string FormatSeconds(double seconds) => seconds.ToString("0.######", CultureInfo.InvariantCulture);
+    private static string FormatSeconds(double seconds) =>
+        seconds.ToString("0.######", CultureInfo.InvariantCulture);
 
     private static string LastLines(string value, int count) => string.Join(
         Environment.NewLine,
