@@ -32,6 +32,35 @@ Implemented automation capabilities:
 
 Default templates include talking-head TikTok, multi-platform Shorts, event recap and transcript/SRT workflows.
 
+## Script to Video
+
+The Script-to-Video workspace can create a complete narrated video from a script:
+
+```text
+Script
+→ Scene planning
+→ Local assets or AI-generated image/video
+→ Multilingual voice
+→ Captions
+→ Platform render
+```
+
+It supports:
+
+- Deterministic scene splitting and editable prompts per scene
+- Project-local image and B-roll matching before cloud generation
+- OpenAI image generation with `gpt-image-1`
+- OpenAI text-to-video generation with `sora-2`
+- Video-to-image fallback when cloud video generation fails
+- Windows local voices selected by language or installed voice name
+- OpenAI multilingual speech using `gpt-4o-mini-tts`
+- Auto detection for Thai, English, Japanese, Chinese, Korean, Arabic and Russian scripts
+- Manual language selection for Spanish, French, German, Portuguese, Italian and other supported voices
+- In-memory API key entry or the `OPENAI_API_KEY` environment variable
+- Versioned generated assets under the current Project
+
+The API key entered in the Script-to-Video window is used only for the current process and is not written to the Project file. The application also supports `OPENAI_BASE_URL` for compatible gateways.
+
 ## Implemented product scope
 
 ### Phase 1 — Core Working Product
@@ -89,9 +118,20 @@ Default templates include talking-head TikTok, multi-platform Shorts, event reca
 - Reviewable social publishing outbox packages
 - Collaboration ZIP export/import with SHA-256 and zip-slip protection
 
+### Phase 7 — AI Media Generation and Multilingual Voice
+
+- Provider contracts for image, video and speech generation
+- OpenAI image, video and speech implementations over authenticated HTTPS
+- Windows local speech provider with culture-based voice selection
+- Script-to-Video AI visual modes: local only, fill missing images, regenerate all images, generate all videos, or video with image fallback
+- Per-scene prompt editing and generation status
+- Platform-aware image and video dimensions
+- Long OpenAI narration split into chunks and rejoined through bundled FFmpeg
+- API failures remain visible and never report success unless output files are created
+
 ## Important provider limitation
 
-Cloud and social provider interfaces report their actual configuration state. The built-in product performs real file delivery to local or synced folders, uses project-local B-roll and creates inspectable social outbox packages. It does **not** claim a YouTube, TikTok, Instagram or Facebook upload, stock download or cloud-generated image succeeded without an authenticated provider plugin, account approval and the relevant external API permission.
+Cloud and social provider interfaces report their actual configuration state. The built-in product performs real file delivery to local or synced folders, uses project-local B-roll and creates inspectable social outbox packages. Cloud image, video and speech generation require a valid API key, account access, available quota and network connectivity. It does **not** claim a YouTube, TikTok, Instagram or Facebook upload, stock download or cloud generation succeeded without an authenticated provider and a verified output file.
 
 ## Technology stack
 
@@ -100,6 +140,7 @@ Cloud and social provider interfaces report their actual configuration state. Th
 - FFmpeg and FFprobe
 - `whisper.cpp`
 - OpenCvSharp with OpenCV Zoo YuNet and YOLOX ONNX models
+- OpenAI Images, Videos and Audio REST APIs when configured
 - PdfPig and direct DOCX XML parsing
 - JSON project/job/workflow persistence
 - xUnit real-media integration tests
@@ -112,6 +153,14 @@ dotnet restore AutoCutStudio.sln
 dotnet build AutoCutStudio.sln -c Release
 dotnet test AutoCutStudio.sln -c Release
 ```
+
+Optional OpenAI provider configuration:
+
+```powershell
+setx OPENAI_API_KEY "your_project_api_key"
+```
+
+Restart AutoCut Studio after changing a persistent environment variable. A key may instead be pasted into the Script-to-Video window for the current session only.
 
 ## Portable package
 
@@ -152,16 +201,17 @@ Dependency diagnostic command:
 ## Privacy and safety
 
 - Source media is never overwritten.
-- Output paths are versioned and partial files are promoted only after FFmpeg succeeds.
+- Output paths are versioned and partial files are promoted only after processing succeeds.
 - Tool arguments use `ProcessStartInfo.ArgumentList`; user text is not concatenated into a shell command.
-- Speech, face and object analysis run locally.
+- Speech, face and object analysis run locally unless a cloud provider is explicitly selected.
+- Cloud prompts, scripts and reference images are sent only after the user selects a cloud mode and confirms the request.
+- API keys are not persisted in project files or application logs.
 - Privacy Blur is generated only from tracks selected by the user.
 - B-roll is copied into the relevant job directory only after approval.
 - Mobile Control uses a per-session token and exposes no arbitrary filesystem browser.
 - Plugins are declarative JSON presets and cannot execute arbitrary code.
 - Collaboration import validates paths, file sizes and SHA-256 values.
-- API secrets are not persisted in project files or logs.
 
 ## Validation boundary
 
-Automated CI validates compile, tests, real media, real Whisper, model loading, rendering, QA, portable dependencies, Thai paths, spaces and ZIP integrity. A final manual UI smoke test on the target Windows 10/11 hardware remains the release sign-off step for hardware-specific playback, GPU drivers, Windows Firewall prompts, LAN routing and installed Windows voices.
+Automated CI validates compile, tests, real media, real Whisper, model loading, rendering, QA, portable dependencies, Thai paths, spaces and ZIP integrity. Cloud provider integration tests do not spend API credits in CI; authenticated image/video/speech calls require a final manual smoke test with the user's account. A final manual UI smoke test on the target Windows 10/11 hardware remains the release sign-off step for hardware-specific playback, GPU drivers, Windows Firewall prompts, LAN routing, installed Windows voices and cloud account access.
