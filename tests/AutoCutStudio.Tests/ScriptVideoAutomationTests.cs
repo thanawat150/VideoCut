@@ -108,4 +108,96 @@ public sealed class ScriptVideoAutomationTests
             Directory.Delete(root, true);
         }
     }
+
+    [Fact]
+    public async Task Real_script_video_renders_staged_visual_and_platform_dimensions()
+    {
+        var tools = new ToolLocator();
+        var availability = tools.Locate();
+        Assert.True(availability.IsReady, availability.Message);
+        var root = Path.Combine(Path.GetTempPath(), "AutoCut Script Visual ภาษาไทย " + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var imagePath = Path.Combine(root, "ป่าชายเลน.bmp");
+            await File.WriteAllBytesAsync(imagePath, CreateSolidBmp(16, 16, 24, 120, 60));
+            var project = new ProjectDocument
+            {
+                DisplayName = "Script Video Test",
+                RootPath = root
+            };
+            var recipe = new TemplateVideoRecipe
+            {
+                Title = "ทดสอบภาพประกอบ",
+                Width = 180,
+                Height = 320,
+                FrameRate = 15,
+                ThemeId = "cinematic_visual",
+                GenerateWindowsVoiceover = false,
+                Sections =
+                [
+                    new DocumentSection
+                    {
+                        Index = 0,
+                        Heading = "ป่าชายเลน",
+                        Body = "วิดีโอจากสคริปต์พร้อมภาพประกอบ",
+                        SuggestedDurationSeconds = 2.5
+                    }
+                ]
+            };
+            var repository = new JobRepository();
+            var job = await new TemplateVideoJobFactory(repository).CreateScriptVideoAsync(
+                project,
+                recipe,
+                new Dictionary<int, string> { [0] = imagePath },
+                voiceoverOptions: null,
+                pronunciationDictionary: null);
+            var report = await new FfmpegTemplateVideoProcessor(tools).ProcessAsync(
+                job,
+                _ => Task.CompletedTask,
+                _ => Task.CompletedTask);
+            var metadata = await new FfprobeMediaProbe(tools).ProbeAsync(job.OutputPath);
+
+            Assert.False(report.SourceWasModified);
+            Assert.True(metadata.HasVideo);
+            Assert.False(metadata.HasAudio);
+            Assert.Equal(180, metadata.Width);
+            Assert.Equal(320, metadata.Height);
+            Assert.InRange(metadata.DurationSeconds, 2.2, 2.9);
+            Assert.True(new FileInfo(job.OutputPath).Length > 1000);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static byte[] CreateSolidBmp(int width, int height, byte red, byte green, byte blue)
+    {
+        var rowSize = (width * 3 + 3) & ~3;
+        var pixelBytes = rowSize * height;
+        var fileSize = 54 + pixelBytes;
+        var bytes = new byte[fileSize];
+        bytes[0] = (byte)'B';
+        bytes[1] = (byte)'M';
+        BitConverter.GetBytes(fileSize).CopyTo(bytes, 2);
+        BitConverter.GetBytes(54).CopyTo(bytes, 10);
+        BitConverter.GetBytes(40).CopyTo(bytes, 14);
+        BitConverter.GetBytes(width).CopyTo(bytes, 18);
+        BitConverter.GetBytes(height).CopyTo(bytes, 22);
+        BitConverter.GetBytes((short)1).CopyTo(bytes, 26);
+        BitConverter.GetBytes((short)24).CopyTo(bytes, 28);
+        BitConverter.GetBytes(pixelBytes).CopyTo(bytes, 34);
+        for (var y = 0; y < height; y++)
+        {
+            var offset = 54 + y * rowSize;
+            for (var x = 0; x < width; x++)
+            {
+                bytes[offset + x * 3] = blue;
+                bytes[offset + x * 3 + 1] = green;
+                bytes[offset + x * 3 + 2] = red;
+            }
+        }
+        return bytes;
+    }
 }
