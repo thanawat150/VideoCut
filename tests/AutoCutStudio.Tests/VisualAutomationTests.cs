@@ -147,8 +147,10 @@ public sealed class VisualAutomationTests
             job,
             job.MultiClipRecipe.Inputs,
             metadata,
-            "output.mp4");
-        var filter = arguments[arguments.IndexOf("-filter_complex") + 1];
+            "output.mp4").ToList();
+        var filterIndex = arguments.IndexOf("-filter_complex");
+        Assert.True(filterIndex >= 0);
+        var filter = arguments[filterIndex + 1];
 
         Assert.Contains("concat=n=2:v=1:a=1", filter);
         Assert.Contains("anullsrc", filter);
