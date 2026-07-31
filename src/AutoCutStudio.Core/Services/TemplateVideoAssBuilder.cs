@@ -18,12 +18,21 @@ public sealed class TemplateVideoAssBuilder
         builder.AppendLine();
         builder.AppendLine("[V4+ Styles]");
         builder.AppendLine("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding");
+
         var landscape = recipe.Width >= recipe.Height;
-        var titleSize = landscape ? 72 : 64;
-        var bodySize = landscape ? 44 : 50;
-        builder.AppendLine($"Style: Title,Arial,{titleSize},&H0000FFFF,&H00FFFFFF,&H00101010,&H66000000,-1,0,0,0,100,100,0,0,1,4,2,8,100,100,120,1");
-        builder.AppendLine($"Style: Body,Arial,{bodySize},&H00FFFFFF,&H0000FFFF,&H00101010,&H66000000,0,0,0,0,100,100,0,0,1,3,1,7,120,120,260,1");
-        builder.AppendLine($"Style: Footer,Arial,{Math.Max(28, bodySize - 12)},&H00D1D5DB,&H00FFFFFF,&H00101010,&H66000000,0,0,0,0,100,100,0,0,1,2,1,3,80,80,60,1");
+        var cinematic = string.Equals(recipe.ThemeId, "cinematic_visual", StringComparison.OrdinalIgnoreCase);
+        var titleSize = landscape ? 66 : 58;
+        var bodySize = landscape ? 42 : 52;
+        var titleMargin = landscape ? 85 : 125;
+        var bodyMargin = landscape ? 115 : 315;
+        var sideMargin = landscape ? 150 : 108;
+        var bodyAlignment = cinematic ? 2 : 7;
+        var bodyBack = cinematic ? "&H8A020617" : "&H66000000";
+        var bodyBorderStyle = cinematic ? 3 : 1;
+
+        builder.AppendLine($"Style: Title,Arial,{titleSize},&H0000FFFF,&H00FFFFFF,&H00101010,&H66000000,-1,0,0,0,100,100,0,0,1,4,2,8,{sideMargin},{sideMargin},{titleMargin},1");
+        builder.AppendLine($"Style: Body,Arial,{bodySize},&H00FFFFFF,&H0000FFFF,&H00101010,{bodyBack},-1,0,0,0,100,100,0,0,{bodyBorderStyle},3,1,{bodyAlignment},{sideMargin},{sideMargin},{bodyMargin},1");
+        builder.AppendLine($"Style: Footer,Arial,{Math.Max(26, bodySize - 16)},&H00D1D5DB,&H00FFFFFF,&H00101010,&H66000000,0,0,0,0,100,100,0,0,1,2,1,3,80,80,55,1");
         builder.AppendLine();
         builder.AppendLine("[Events]");
         builder.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
@@ -35,9 +44,9 @@ public sealed class TemplateVideoAssBuilder
             var duration = Math.Clamp(section.SuggestedDurationSeconds, 2, 20);
             var end = cursor + duration;
             builder.AppendLine(Dialogue(2, cursor, end, "Title",
-                $"{{\\fad(180,180)\\t(0,300,\\fscx104\\fscy104)}}{Escape(section.Heading)}"));
-            builder.AppendLine(Dialogue(1, cursor + 0.25, end, "Body",
-                $"{{\\fad(220,180)}}{Wrap(Escape(section.Body), recipe.Width >= recipe.Height ? 52 : 30)}"));
+                $"{{\\fad(180,180)\\t(0,300,\\fscx103\\fscy103)}}{Escape(section.Heading)}"));
+            builder.AppendLine(Dialogue(1, cursor + 0.18, end, "Body",
+                $"{{\\fad(200,180)}}{Wrap(Escape(section.Body), landscape ? 58 : 30, cinematic ? 3 : 6)}"));
             builder.AppendLine(Dialogue(0, cursor, end, "Footer",
                 $"{index + 1}/{recipe.Sections.Count}  •  {Escape(recipe.Title)}"));
             cursor = end;
@@ -66,19 +75,24 @@ public sealed class TemplateVideoAssBuilder
         .Replace("\r\n", "\\N", StringComparison.Ordinal)
         .Replace("\n", "\\N", StringComparison.Ordinal);
 
-    private static string Wrap(string value, int width)
+    private static string Wrap(string value, int width, int maximumLines)
     {
-        if (value.Length <= width) return value;
+        if (value.Length <= width)
+            return value;
         var lines = new List<string>();
         var remaining = value;
-        while (remaining.Length > width && lines.Count < 6)
+        while (remaining.Length > width && lines.Count < maximumLines)
         {
             var split = remaining.LastIndexOf(' ', Math.Min(width, remaining.Length - 1));
-            if (split < width / 2) split = Math.Min(width, remaining.Length);
+            if (split < width / 2)
+                split = Math.Min(width, remaining.Length);
             lines.Add(remaining[..split].Trim());
             remaining = remaining[split..].Trim();
         }
-        if (!string.IsNullOrWhiteSpace(remaining) && lines.Count < 6) lines.Add(remaining);
+        if (!string.IsNullOrWhiteSpace(remaining) && lines.Count < maximumLines)
+            lines.Add(remaining);
+        else if (!string.IsNullOrWhiteSpace(remaining) && lines.Count > 0)
+            lines[^1] = lines[^1].TrimEnd('…') + "…";
         return string.Join("\\N", lines);
     }
 }

@@ -11,46 +11,93 @@ public sealed class TemplateVideoJobFactory
 
     public TemplateVideoJobFactory(JobRepository jobs) => _jobs = jobs;
 
-    public async Task<JobDocument> CreateAsync(
+    public Task<JobDocument> CreateAsync(
         ProjectDocument project,
         TemplateVideoRecipe recipe,
+        CancellationToken cancellationToken = default) =>
+        CreateScriptVideoAsync(
+            project,
+            recipe,
+            sceneAssets: null,
+            voiceoverOptions: null,
+            pronunciationDictionary: null,
+            cancellationToken);
+
+    public async Task<JobDocument> CreateScriptVideoAsync(
+        ProjectDocument project,
+        TemplateVideoRecipe recipe,
+        IReadOnlyDictionary<int, string>? sceneAssets,
+        WindowsVoiceoverOptions? voiceoverOptions,
+        string? pronunciationDictionary,
         CancellationToken cancellationToken = default)
     {
         if (recipe.Sections.Count == 0)
             throw new InvalidDataException("Template Video ต้องมีอย่างน้อย 1 Section");
+
         var jobId = Guid.NewGuid();
         var directory = PathSecurity.EnsureUnderRoot(
             Path.Combine(project.RootPath, "jobs", jobId.ToString("N")), project.RootPath);
         Directory.CreateDirectory(directory);
+
+        var stagedRecipe = recipe with
+        {
+            Sections = recipe.Sections
+                .OrderBy(section => section.Index)
+                .Select((section, index) => section with { Index = index })
+                .ToList()
+        };
+
+        if (sceneAssets is not null)
+            await StageSceneAssetsAsync(project.RootPath, directory, sceneAssets, stagedRecipe.Sections.Count, cancellationToken);
+
+        string? voiceoverPath = null;
+        if (stagedRecipe.GenerateWindowsVoiceover)
+        {
+            voiceoverPath = Path.Combine(directory, "voiceover.wav");
+            var narration = string.Join(
+                Environment.NewLine,
+                stagedRecipe.Sections.Select(section => $"{section.Heading}. {section.Body}"));
+            narration = new ScriptVideoPlanner().ApplyPronunciationDictionary(narration, pronunciationDictionary);
+            await new WindowsVoiceoverService().GenerateAsync(
+                narration,
+                voiceoverPath,
+                voiceoverOptions ?? new WindowsVoiceoverOptions { Language = stagedRecipe.VoiceLanguage },
+                cancellationToken);
+
+            try
+            {
+                var metadata = await new FfprobeMediaProbe(new ToolLocator()).ProbeAsync(voiceoverPath, cancellationToken);
+                if (metadata.DurationSeconds > 0.5)
+                    stagedRecipe = stagedRecipe with
+                    {
+                        Sections = RebalanceDurations(stagedRecipe.Sections, metadata.DurationSeconds + 0.6)
+                    };
+            }
+            catch
+            {
+                // A valid voiceover was already generated. Estimated scene timing remains usable if probing fails.
+            }
+        }
+
         var scriptPath = Path.Combine(directory, "document-script.json");
         var assPath = Path.Combine(directory, "slides.ass");
         await File.WriteAllTextAsync(
             scriptPath,
-            JsonSerializer.Serialize(recipe, JsonDefaults.Options),
+            JsonSerializer.Serialize(stagedRecipe, JsonDefaults.Options),
             new UTF8Encoding(false),
             cancellationToken);
         var builder = new TemplateVideoAssBuilder();
         await File.WriteAllTextAsync(
             assPath,
-            builder.Build(recipe),
+            builder.Build(stagedRecipe),
             new UTF8Encoding(false),
             cancellationToken);
 
-        string? voiceoverPath = null;
-        if (recipe.GenerateWindowsVoiceover)
-        {
-            voiceoverPath = Path.Combine(directory, "voiceover.wav");
-            var narration = string.Join(
-                Environment.NewLine,
-                recipe.Sections.Select(section => $"{section.Heading}. {section.Body}"));
-            await new WindowsVoiceoverService().GenerateAsync(narration, voiceoverPath, cancellationToken);
-        }
-
         var output = VersionedPathService.GetNextAvailablePath(
-            Path.Combine(project.RootPath, "exports", "template-video"),
-            string.IsNullOrWhiteSpace(recipe.Title) ? "document_video" : SanitizeName(recipe.Title),
+            Path.Combine(project.RootPath, "exports", "script-video"),
+            string.IsNullOrWhiteSpace(stagedRecipe.Title) ? "script_video" : SanitizeName(stagedRecipe.Title),
             ".mp4");
-        var duration = builder.TotalDuration(recipe);
+        var duration = builder.TotalDuration(stagedRecipe);
         var job = new JobDocument
         {
             JobId = jobId,
@@ -66,7 +113,7 @@ public sealed class TemplateVideoJobFactory
             ExpectedDurationSeconds = duration,
             TemplateVideoRecipe = new TemplateVideoJobRecipe
             {
-                Recipe = recipe,
+                Recipe = stagedRecipe,
                 ScriptPath = scriptPath,
                 VoiceoverPath = voiceoverPath,
                 AssPath = assPath
@@ -74,6 +121,62 @@ public sealed class TemplateVideoJobFactory
         };
         await InitializeAsync(job, cancellationToken);
         return job;
+    }
+
+    private static async Task StageSceneAssetsAsync(
+        string projectRoot,
+        string jobDirectory,
+        IReadOnlyDictionary<int, string> sceneAssets,
+        int sectionCount,
+        CancellationToken cancellationToken)
+    {
+        foreach (var pair in sceneAssets.OrderBy(item => item.Key))
+        {
+            if (pair.Key < 0 || pair.Key >= sectionCount || string.IsNullOrWhiteSpace(pair.Value))
+                continue;
+            var source = Path.GetFullPath(pair.Value);
+            if (!File.Exists(source))
+                continue;
+
+            var extension = Path.GetExtension(source).ToLowerInvariant();
+            if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp" or ".bmp" or ".mp4" or ".mov" or ".mkv" or ".webm"))
+                continue;
+
+            var target = PathSecurity.EnsureUnderRoot(
+                Path.Combine(jobDirectory, $"scene-{pair.Key:000}{extension}"),
+                projectRoot);
+            await using var input = File.OpenRead(source);
+            await using var output = File.Create(target);
+            await input.CopyToAsync(output, cancellationToken);
+        }
+    }
+
+    private static List<DocumentSection> RebalanceDurations(
+        IReadOnlyList<DocumentSection> sections,
+        double targetDurationSeconds)
+    {
+        var minimumTotal = sections.Count * 2.0;
+        var target = Math.Max(minimumTotal, targetDurationSeconds);
+        var weights = sections.Select(section => Math.Max(8, section.Heading.Length + section.Body.Length)).ToArray();
+        var totalWeight = Math.Max(1, weights.Sum());
+        var durations = weights.Select(weight => Math.Clamp(target * weight / totalWeight, 2.0, 20.0)).ToArray();
+        var actual = durations.Sum();
+        if (actual > 0 && target > actual)
+        {
+            var remaining = target - actual;
+            for (var index = 0; index < durations.Length && remaining > 0.01; index++)
+            {
+                var add = Math.Min(20.0 - durations[index], remaining / Math.Max(1, durations.Length - index));
+                durations[index] += Math.Max(0, add);
+                remaining -= Math.Max(0, add);
+            }
+        }
+
+        return sections.Select((section, index) => section with
+        {
+            Index = index,
+            SuggestedDurationSeconds = Math.Round(durations[index], 3)
+        }).ToList();
     }
 
     private async Task InitializeAsync(JobDocument job, CancellationToken cancellationToken)
@@ -85,7 +188,7 @@ public sealed class TemplateVideoJobFactory
             JobId = job.JobId,
             Status = JobStatuses.Queued,
             ActiveAgentId = AgentIds.Producer,
-            Message = "เพิ่ม Template Video Job เข้าคิว"
+            Message = "เพิ่ม Script-to-Video Job เข้าคิว"
         }, cancellationToken);
         await AtomicJsonFile.WriteAsync(Path.Combine(directory, "control.json"), new JobControl(), cancellationToken);
         foreach (var name in new[] { "run.log", "error.log", "agent-events.jsonl" })
@@ -96,6 +199,6 @@ public sealed class TemplateVideoJobFactory
     {
         var invalid = Path.GetInvalidFileNameChars();
         var cleaned = new string(value.Select(character => invalid.Contains(character) ? '_' : character).ToArray()).Trim();
-        return string.IsNullOrWhiteSpace(cleaned) ? "document_video" : cleaned;
+        return string.IsNullOrWhiteSpace(cleaned) ? "script_video" : cleaned;
     }
 }
