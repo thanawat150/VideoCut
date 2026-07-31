@@ -100,12 +100,28 @@ if ($env:GITHUB_STEP_SUMMARY) {
 
 if ($Publish) {
     if ([string]::IsNullOrWhiteSpace($env:GH_TOKEN)) { throw "GH_TOKEN is required to publish a release." }
-    & gh release create $tag $Zip $Checksum $Manifest `
-        --repo $Repository `
-        --target $CommitSha `
-        --title "AutoCut Studio Rebuild $tag" `
-        --notes-file $Notes
-    if ($LASTEXITCODE -ne 0) { throw "GitHub Release creation failed." }
+
+    & gh release view $tag --repo $Repository *> $null
+    $releaseExists = $LASTEXITCODE -eq 0
+
+    if ($releaseExists) {
+        & gh release upload $tag $Zip $Checksum $Manifest --repo $Repository --clobber
+        if ($LASTEXITCODE -ne 0) { throw "GitHub Release asset update failed." }
+        & gh release edit $tag `
+            --repo $Repository `
+            --target $CommitSha `
+            --title "AutoCut Studio Rebuild $tag" `
+            --notes-file $Notes
+        if ($LASTEXITCODE -ne 0) { throw "GitHub Release metadata update failed." }
+    }
+    else {
+        & gh release create $tag $Zip $Checksum $Manifest `
+            --repo $Repository `
+            --target $CommitSha `
+            --title "AutoCut Studio Rebuild $tag" `
+            --notes-file $Notes
+        if ($LASTEXITCODE -ne 0) { throw "GitHub Release creation failed." }
+    }
 }
 
 Write-Host "Release tag: $tag"
