@@ -129,8 +129,8 @@ public sealed class ScriptVideoAutomationTests
             var recipe = new TemplateVideoRecipe
             {
                 Title = "ทดสอบภาพประกอบ",
-                Width = 180,
-                Height = 320,
+                Width = 360,
+                Height = 640,
                 FrameRate = 15,
                 ThemeId = "cinematic_visual",
                 GenerateWindowsVoiceover = false,
@@ -161,8 +161,8 @@ public sealed class ScriptVideoAutomationTests
             Assert.False(report.SourceWasModified);
             Assert.True(metadata.HasVideo);
             Assert.False(metadata.HasAudio);
-            Assert.Equal(180, metadata.Width);
-            Assert.Equal(320, metadata.Height);
+            Assert.Equal(360, metadata.Width);
+            Assert.Equal(640, metadata.Height);
             Assert.InRange(metadata.DurationSeconds, 2.2, 2.9);
             Assert.True(new FileInfo(job.OutputPath).Length > 1000);
         }
