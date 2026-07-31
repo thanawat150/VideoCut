@@ -33,7 +33,7 @@ public static class Tools
     {
         var variable = name switch { "ffmpeg" => "AUTOCUT_REBUILD_FFMPEG", "ffprobe" => "AUTOCUT_REBUILD_FFPROBE", _ => "AUTOCUT_REBUILD_WHISPER" };
         var configured = Environment.GetEnvironmentVariable(variable);
-        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured!;
         var executable = OperatingSystem.IsWindows() ? name + ".exe" : name;
         var folder = name.StartsWith("ff", StringComparison.OrdinalIgnoreCase) ? "ffmpeg" : "whisper";
         var bundled = Path.Combine(AppContext.BaseDirectory, "tools", folder, executable);

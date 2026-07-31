@@ -1,0 +1,13 @@
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Threading;
+global using System.Threading.Tasks;
+global using Application = System.Windows.Application;
+global using MessageBox = System.Windows.MessageBox;
+global using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+global using Orientation = System.Windows.Controls.Orientation;
+global using Brushes = System.Windows.Media.Brushes;
+global using Color = System.Windows.Media.Color;
+global using HorizontalAlignment = System.Windows.HorizontalAlignment;
