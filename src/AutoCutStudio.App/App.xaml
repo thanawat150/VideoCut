@@ -12,6 +12,10 @@
         <SolidColorBrush x:Key="TextBrush" Color="#F5F8FF"/>
         <SolidColorBrush x:Key="MutedTextBrush" Color="#91A0BA"/>
         <SolidColorBrush x:Key="DangerBrush" Color="#F85D6F"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#070B12"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}" Color="#F5F8FF"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#244A7C"/>
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
         <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#4A7DFF" Offset="0"/>
             <GradientStop Color="#8D5CF6" Offset="0.55"/>
@@ -91,9 +95,28 @@
         <Style TargetType="ComboBox">
             <Setter Property="Margin" Value="4"/>
             <Setter Property="Padding" Value="8"/>
-            <Setter Property="Background" Value="#111C30"/>
+            <Setter Property="Background" Value="#070B12"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="BorderBrush" Value="#304361"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#070B12"/>
+            <Setter Property="Foreground" Value="#F5F8FF"/>
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#1A2A45"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#244A7C"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#65738A"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
