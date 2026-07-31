@@ -13,6 +13,11 @@ $WhisperDirectory = Join-Path $ToolsRoot "whisper"
 $WhisperModelDirectory = Join-Path $ToolsRoot "whisper-model"
 $VisionModelDirectory = Join-Path $ToolsRoot "vision-models"
 $DependencyManifestPath = Join-Path $ToolsRoot "release-dependencies.json"
+$TempRoot = if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+    [System.IO.Path]::GetTempPath()
+} else {
+    $env:RUNNER_TEMP
+}
 
 $Expected = [ordered]@{
     ffmpeg = "1326dde4c84ff1f96fe6b8916c5bed29e163e9b5dccf995f6f3db069d143ec5e"
@@ -97,7 +102,7 @@ $FfprobePath = Join-Path $FfmpegDirectory "ffprobe.exe"
 Assert-FileHash $FfmpegPath $Expected.ffmpeg "FFmpeg"
 Assert-FileHash $FfprobePath $Expected.ffprobe "FFprobe"
 
-$WhisperArchive = Join-Path $env:RUNNER_TEMP "whisper-bin-x64-$WhisperVersion.zip"
+$WhisperArchive = Join-Path $TempRoot "whisper-bin-x64-$WhisperVersion.zip"
 Download-File "https://github.com/ggml-org/whisper.cpp/releases/download/$WhisperVersion/whisper-bin-x64.zip" $WhisperArchive
 Expand-Archive -LiteralPath $WhisperArchive -DestinationPath $WhisperDownload -Force
 $WhisperCliSource = Get-ChildItem -LiteralPath $WhisperDownload -Filter "whisper-cli.exe" -File -Recurse |
