@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using AutoCutStudio.Core.Models;
+using AutoCutStudio.Core.Services;
 using AutoCutStudio.Infrastructure;
 using Microsoft.Win32;
 
@@ -19,6 +21,8 @@ public partial class MainWindow
             return;
         }
         _visualAutomationUiEnabled = true;
+        Title = "AutoCut Studio — Visual Video Automation";
+        RewriteLegacyBranding(this);
 
         if (CommandTextBox.Parent is DockPanel commandPanel)
         {
@@ -285,6 +289,7 @@ public partial class MainWindow
                 return;
             }
 
+            await EnsureDefaultWorkflowsSavedAsync(_project);
             MobileControlServer? server = null;
             server = new MobileControlServer(
                 () => _project,
@@ -333,6 +338,45 @@ public partial class MainWindow
             }
             _mobileControlServer = null;
             ShowError("เปิด Mobile Control ไม่สำเร็จ", exception);
+        }
+    }
+
+    private static async Task EnsureDefaultWorkflowsSavedAsync(ProjectDocument project)
+    {
+        var repository = new VisualWorkflowRepository();
+        var saved = await repository.ListAsync(project.RootPath);
+        if (saved.Count > 0)
+        {
+            return;
+        }
+
+        foreach (var template in new WorkflowTemplateCatalog().CreateDefaults(project.ProjectId))
+        {
+            await repository.SaveAsync(project.RootPath, template);
+        }
+    }
+
+    private static void RewriteLegacyBranding(DependencyObject parent)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is TextBlock text)
+            {
+                if (text.Text.Contains("Pixel Agent Office", StringComparison.OrdinalIgnoreCase))
+                {
+                    text.Text = "Visual Automation Engine · Local Whisper · FFmpeg · OpenCV · Mobile Control";
+                }
+                else if (text.Text.Contains("Phase 1 รองรับเฉพาะ", StringComparison.OrdinalIgnoreCase))
+                {
+                    text.Text = "ลาก Node สร้าง Flow เอง รองรับหลายคลิป หลายแพลตฟอร์ม ซับ Safe Zone และ B-roll อัตโนมัติ";
+                }
+                else if (text.Text == "AutoCut Studio")
+                {
+                    text.Text = "AutoCut Studio · Visual Automation";
+                }
+            }
+            RewriteLegacyBranding(child);
         }
     }
 
