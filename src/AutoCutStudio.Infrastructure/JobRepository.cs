@@ -39,6 +39,7 @@ public sealed class JobRepository : IJobRepository
         string hookText,
         string ctaText,
         bool burnCaptions,
+        IReadOnlyList<BrollOverlayRecipe>? brollOverlays = null,
         int priority = 10,
         CancellationToken cancellationToken = default)
     {
@@ -70,6 +71,11 @@ public sealed class JobRepository : IJobRepository
             await File.WriteAllTextAsync(captionPath, assContent, new UTF8Encoding(false), cancellationToken);
         }
 
+        var stagedBroll = await StageBrollAsync(
+            jobDirectory,
+            candidate,
+            brollOverlays ?? [],
+            cancellationToken);
         var recipe = new RenderRecipe
         {
             PresetId = preset.Id,
@@ -82,12 +88,86 @@ public sealed class JobRepository : IJobRepository
             CaptionAssPath = captionPath,
             BurnCaptions = burnCaptions,
             HookText = hookText,
-            CtaText = ctaText
+            CtaText = ctaText,
+            CaptionSafeZone = preset.CaptionSafeZone,
+            BrollOverlays = stagedBroll
         };
         var job = BuildJob(
             project, media, [segment], JobTypes.SocialClipExport,
             outputPath, recipe, priority, jobId);
         return await InitializeJobAsync(job, cancellationToken);
+    }
+
+    private static async Task<List<BrollOverlayRecipe>> StageBrollAsync(
+        string jobDirectory,
+        HighlightCandidate candidate,
+        IReadOnlyList<BrollOverlayRecipe> overlays,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<BrollOverlayRecipe>();
+        var index = 0;
+        foreach (var overlay in overlays
+                     .Where(item => item.Confidence >= 0.55)
+                     .OrderByDescending(item => item.Confidence)
+                     .ThenBy(item => item.StartSeconds)
+                     .Take(12))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!File.Exists(overlay.AssetPath))
+            {
+                continue;
+            }
+
+            var extension = Path.GetExtension(overlay.AssetPath).ToLowerInvariant();
+            if (extension is not ".mp4" and not ".mov" and not ".mkv" and
+                not ".jpg" and not ".jpeg" and not ".png" and not ".webp")
+            {
+                continue;
+            }
+
+            var relativeStart = Math.Clamp(
+                overlay.StartSeconds - candidate.StartSeconds,
+                0,
+                candidate.DurationSeconds);
+            var relativeEnd = Math.Clamp(
+                overlay.EndSeconds - candidate.StartSeconds,
+                relativeStart + 0.1,
+                candidate.DurationSeconds);
+            if (relativeEnd <= relativeStart + 0.08)
+            {
+                continue;
+            }
+
+            var staged = Path.Combine(jobDirectory, $"broll-{index:00}{extension}");
+            await using (var input = new FileStream(
+                             overlay.AssetPath,
+                             FileMode.Open,
+                             FileAccess.Read,
+                             FileShare.Read,
+                             1024 * 1024,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var output = new FileStream(
+                             staged,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             1024 * 1024,
+                             FileOptions.Asynchronous))
+            {
+                await input.CopyToAsync(output, 1024 * 1024, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+
+            result.Add(overlay with
+            {
+                AssetPath = staged,
+                StartSeconds = relativeStart,
+                EndSeconds = relativeEnd
+            });
+            index++;
+        }
+
+        return result;
     }
 
     private static JobDocument BuildJob(
