@@ -1,0 +1,156 @@
+<Window x:Class="AutoCutStudio.App.ScriptVideoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Script to Video Automation"
+        Width="1420"
+        Height="880"
+        MinWidth="1120"
+        MinHeight="720"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock Text="Script to Video Automation" FontSize="25" FontWeight="Bold"/>
+                <TextBlock Text="ใส่สคริปต์ครั้งเดียว ระบบแบ่งฉาก สร้างเสียง เลือกภาพ ทำซับ และส่งเข้าคิว Render"
+                           Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Button DockPanel.Dock="Right" Content="ปิด" Click="Close_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+        </DockPanel>
+
+        <Border Grid.Row="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="34"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="#1A2944" CornerRadius="9" Padding="10"><TextBlock Text="1  Script Input" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <TextBlock Grid.Column="1" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <Border Grid.Column="2" Background="#291E4A" CornerRadius="9" Padding="10"><TextBlock Text="2  Scene Planner" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <TextBlock Grid.Column="3" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <Border Grid.Column="4" Background="#3A2233" CornerRadius="9" Padding="10"><TextBlock Text="3  Local Voice" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <TextBlock Grid.Column="5" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <Border Grid.Column="6" Background="#233A32" CornerRadius="9" Padding="10"><TextBlock Text="4  Auto Visual" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <TextBlock Grid.Column="7" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <Border Grid.Column="8" Background="#283146" CornerRadius="9" Padding="10"><TextBlock Text="5  Captions" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+                <TextBlock Grid.Column="9" Text="→" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"/>
+                <Border Grid.Column="10" Background="#173A35" CornerRadius="9" Padding="10"><TextBlock Text="6  Export" HorizontalAlignment="Center" FontWeight="SemiBold"/></Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0.9*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="1.35*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="1" CornerRadius="12" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="สคริปต์และการตั้งค่า" FontSize="18" FontWeight="SemiBold" Margin="4,0,0,8"/>
+                        <TextBlock Text="ชื่อวิดีโอ" Foreground="{StaticResource MutedTextBrush}" Margin="4,5,0,0"/>
+                        <TextBox x:Name="TitleTextBox" Text="วิดีโอจากสคริปต์"/>
+
+                        <TextBlock Text="สคริปต์" Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0"/>
+                        <TextBox x:Name="ScriptTextBox" Height="240" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Text="ป่าชายเลนเป็นระบบนิเวศที่สำคัญ ช่วยลดแรงกระแทกจากคลื่นและเป็นแหล่งอนุบาลสัตว์น้ำ&#x0a;&#x0a;นอกจากนี้ ป่าชายเลนยังกักเก็บคาร์บอนได้เป็นจำนวนมาก จึงมีบทบาทสำคัญต่อการรับมือการเปลี่ยนแปลงสภาพภูมิอากาศ"/>
+
+                        <TextBlock Text="แพลตฟอร์ม" Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0"/>
+                        <ComboBox x:Name="PlatformComboBox" SelectedIndex="0">
+                            <ComboBoxItem Content="TikTok 9:16" Tag="tiktok"/>
+                            <ComboBoxItem Content="Instagram Reels 9:16" Tag="instagram_reels"/>
+                            <ComboBoxItem Content="Facebook Reels 9:16" Tag="facebook_reels"/>
+                            <ComboBoxItem Content="Facebook Feed 4:5" Tag="facebook_feed"/>
+                            <ComboBoxItem Content="YouTube Shorts 9:16" Tag="youtube_shorts"/>
+                            <ComboBoxItem Content="YouTube 16:9" Tag="youtube_landscape"/>
+                            <ComboBoxItem Content="Square 1:1" Tag="square_feed"/>
+                        </ComboBox>
+
+                        <CheckBox x:Name="VoiceoverCheckBox" Content="สร้างเสียงบรรยายด้วยเสียงที่ติดตั้งใน Windows" IsChecked="True" Margin="5,10,0,0"/>
+                        <DockPanel Margin="4,5,4,0">
+                            <TextBlock Text="ความเร็วเสียง" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="VoiceRateValueText" DockPanel.Dock="Right" Text="0" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <Slider x:Name="VoiceRateSlider" Minimum="-4" Maximum="4" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="VoiceRateSlider_ValueChanged" Margin="5,2"/>
+
+                        <CheckBox x:Name="AutoVisualCheckBox" Content="เลือกภาพและ B-roll จากคลังของ Project อัตโนมัติ" IsChecked="True" Margin="5,8,0,0"/>
+                        <CheckBox x:Name="SequentialFallbackCheckBox" Content="ถ้าจับคู่คำไม่ได้ ให้เรียงภาพที่เหลือตามลำดับ" IsChecked="True" Margin="24,5,0,0"/>
+                        <DockPanel Margin="4,5,4,0">
+                            <TextBox x:Name="AssetsDirectoryTextBox" IsReadOnly="True" DockPanel.Dock="Left"/>
+                            <Button Content="เปิดคลังภาพ" Click="OpenAssets_Click" Style="{StaticResource CompactButtonStyle}"/>
+                        </DockPanel>
+
+                        <TextBlock Text="พจนานุกรมคำอ่าน — หนึ่งรายการต่อบรรทัด เช่น T-VER=ที เวอร์"
+                                   Foreground="{StaticResource MutedTextBrush}" Margin="4,8,0,0" TextWrapping="Wrap"/>
+                        <TextBox x:Name="PronunciationTextBox" Height="82" AcceptsReturn="True" TextWrapping="Wrap"
+                                 Text="T-VER=ที เวอร์&#x0a;GIS=จี ไอ เอส&#x0a;MRV=เอ็ม อาร์ วี"/>
+
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="PlanButton" Content="วิเคราะห์และแบ่งฉาก" Click="Plan_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                            <Button x:Name="CreateButton" Content="สร้างวิดีโออัตโนมัติ" Click="Create_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
+                    BorderThickness="1" CornerRadius="12" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,9">
+                        <StackPanel DockPanel.Dock="Left">
+                            <TextBlock Text="แผนฉากและภาพประกอบ" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="PlanSummaryText" Text="กดวิเคราะห์เพื่อสร้างแผน" Foreground="{StaticResource MutedTextBrush}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <Button DockPanel.Dock="Right" Content="เพิ่มภาพ/B-roll" Click="AddAssets_Click" Style="{StaticResource CompactButtonStyle}"/>
+                    </DockPanel>
+
+                    <DataGrid x:Name="ScenesGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              AlternationCount="2" SelectionMode="Single">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="#" Binding="{Binding DisplayIndex}" Width="42"/>
+                            <DataGridTextColumn Header="หัวข้อฉาก" Binding="{Binding Heading}" Width="1.2*"/>
+                            <DataGridTextColumn Header="เสียงบรรยาย" Binding="{Binding Narration}" Width="2.2*"/>
+                            <DataGridTextColumn Header="ภาพ/B-roll" Binding="{Binding AssetDisplayName}" Width="1.1*"/>
+                            <DataGridTextColumn Header="ที่มา" Binding="{Binding VisualSourceDisplay}" Width="100"/>
+                            <DataGridTextColumn Header="เวลา" Binding="{Binding DurationDisplay}" Width="72"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="2" Background="#0A1221" BorderBrush="#263752" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,10,0,0">
+                        <StackPanel>
+                            <TextBlock x:Name="StatusText" Text="พร้อมสร้าง Script Video" TextWrapping="Wrap"/>
+                            <ProgressBar x:Name="BusyProgress" Margin="0,8,0,0" IsIndeterminate="True" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="ระบบไม่แก้ไขไฟล์ต้นฉบับ ภาพที่ใช้จะถูกคัดลอกเข้า Job และ Output จะสร้างชื่อเวอร์ชันใหม่เสมอ"
+                   Foreground="{StaticResource MutedTextBrush}" Margin="4,10,0,0"/>
+    </Grid>
+</Window>
