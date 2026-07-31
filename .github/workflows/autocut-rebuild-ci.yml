@@ -1,0 +1,139 @@
+name: AutoCut Studio Rebuild CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "AutoCutStudio-Rebuild/**"
+      - ".github/workflows/autocut-rebuild-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: AutoCutStudio-Rebuild
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install FFmpeg
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore AutoCutStudio.Rebuild.csproj
+          dotnet restore tests/AutoCutStudio.Rebuild.Tests.csproj
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build AutoCutStudio.Rebuild.csproj -c Release --no-restore
+
+      - name: Unit tests
+        shell: pwsh
+        run: dotnet test tests/AutoCutStudio.Rebuild.Tests.csproj -c Release --logger "trx;LogFileName=rebuild-tests.trx"
+
+      - name: Verify asInvoker
+        shell: pwsh
+        run: |
+          $manifest = Get-Content app.manifest -Raw
+          if ($manifest -notmatch 'requestedExecutionLevel level="asInvoker"') { throw "Manifest is not asInvoker." }
+
+      - name: Publish Worker-capable portable EXE
+        shell: pwsh
+        run: dotnet publish AutoCutStudio.Rebuild.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o artifacts/worker-test
+
+      - name: Real Worker render with Thai path and spaces
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $PWD "artifacts/ทดสอบ path มีช่องว่าง"
+          $jobs = Join-Path $root "jobs/11111111111111111111111111111111"
+          $exports = Join-Path $root "exports"
+          New-Item $jobs,$exports -ItemType Directory -Force | Out-Null
+          $input1 = Join-Path $root "คลิป หนึ่ง.mp4"
+          $input2 = Join-Path $root "คลิป สอง.mp4"
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30" -f lavfi -i "sine=frequency=440:sample_rate=48000" -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac $input1
+          ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=size=640x360:rate=30" -f lavfi -i "sine=frequency=660:sample_rate=48000" -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac $input2
+          if ($LASTEXITCODE -ne 0) { throw "Could not create test media." }
+          $output = Join-Path $exports "output.mp4"
+          $job = [ordered]@{
+            job_id = "11111111-1111-1111-1111-111111111111"
+            kind = 0
+            state = 1
+            progress = 0
+            project_root = $root
+            output_path = $output
+            clips = @(
+              [ordered]@{ source_path = $input1; source_in_seconds = 0.25; source_out_seconds = 1.75 },
+              [ordered]@{ source_path = $input2; source_in_seconds = 0.10; source_out_seconds = 1.60 }
+            )
+            options = @{}
+            created_at = [DateTimeOffset]::UtcNow.ToString("O")
+          }
+          $jobPath = Join-Path $jobs "job.json"
+          $job | ConvertTo-Json -Depth 8 | Set-Content $jobPath -Encoding utf8
+          $env:AUTOCUT_REBUILD_FFMPEG = (Get-Command ffmpeg.exe).Source
+          $env:AUTOCUT_REBUILD_FFPROBE = (Get-Command ffprobe.exe).Source
+          & "artifacts/worker-test/AutoCutStudio.Rebuild.exe" --worker $jobPath
+          if ($LASTEXITCODE -ne 0) { throw "Worker render failed." }
+          if (-not (Test-Path $output -PathType Leaf)) { throw "Output is missing." }
+          $probe = ffprobe -v error -show_entries stream=codec_type -show_entries format=duration -of json $output | ConvertFrom-Json
+          $types = @($probe.streams | ForEach-Object { $_.codec_type })
+          if ($types -notcontains "video" -or $types -notcontains "audio") { throw "Output streams are invalid." }
+          $duration = [double]$probe.format.duration
+          if ($duration -lt 2.8 -or $duration -gt 3.3) { throw "Unexpected duration: $duration" }
+          $jobAfter = Get-Content $jobPath -Raw | ConvertFrom-Json
+          if ($jobAfter.state -ne 7) { throw "Job did not finish in Completed state: $($jobAfter.state)" }
+
+      - name: Build portable package
+        shell: pwsh
+        run: ./scripts/build-portable.ps1
+
+      - name: Verify portable ZIP
+        shell: pwsh
+        run: |
+          $zip = "artifacts/AutoCutStudio-Rebuild-win-x64.zip"
+          $checksum = "artifacts/AutoCutStudio-Rebuild-win-x64.zip.sha256"
+          if (-not (Test-Path $zip -PathType Leaf) -or -not (Test-Path $checksum -PathType Leaf)) { throw "Portable artifact is missing." }
+          $declared = ((Get-Content $checksum -Raw).Trim() -split "\s+")[0]
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($declared -ne $actual) { throw "SHA-256 mismatch." }
+          $verify = Join-Path $env:RUNNER_TEMP "autocut-rebuild-portable"
+          Expand-Archive $zip $verify -Force
+          foreach ($file in @("AutoCutStudio.Rebuild.exe", "tools/ffmpeg/ffmpeg.exe", "tools/ffmpeg/ffprobe.exe")) {
+            if (-not (Test-Path (Join-Path $verify $file) -PathType Leaf)) { throw "Portable file is missing: $file" }
+          }
+          & (Join-Path $verify "AutoCutStudio.Rebuild.exe") --doctor
+          if ($LASTEXITCODE -ne 0) { throw "Portable doctor failed." }
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-Rebuild-win-x64
+          path: |
+            AutoCutStudio-Rebuild/artifacts/AutoCutStudio-Rebuild-win-x64.zip
+            AutoCutStudio-Rebuild/artifacts/AutoCutStudio-Rebuild-win-x64.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-Rebuild-test-results
+          path: "AutoCutStudio-Rebuild/**/TestResults/*.trx"
+          if-no-files-found: warn
