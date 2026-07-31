@@ -10,28 +10,16 @@ public sealed class LocalMediaGenerationProviderTests
     {
         const string workflow = """
         {
-          "1": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "{{PROMPT}}" }
-          },
-          "2": {
-            "class_type": "EmptyLatentImage",
-            "inputs": { "width": {{WIDTH}}, "height": {{HEIGHT}}, "batch_size": 1 }
-          },
-          "3": {
-            "class_type": "KSampler",
-            "inputs": { "seed": {{SEED}}, "steps": 20 }
-          },
-          "4": {
-            "class_type": "SaveImage",
-            "inputs": { "filename_prefix": "{{OUTPUT_PREFIX}}" }
-          }
+          "1": { "class_type": "CLIPTextEncode", "inputs": { "text": "{{PROMPT}}" } },
+          "2": { "class_type": "EmptyLatentImage", "inputs": { "width": {{WIDTH}}, "height": {{HEIGHT}}, "batch_size": 1 } },
+          "3": { "class_type": "KSampler", "inputs": { "seed": {{SEED}}, "steps": 20 } },
+          "4": { "class_type": "SaveImage", "inputs": { "filename_prefix": "{{OUTPUT_PREFIX}}" } }
         }
         """;
 
         var result = ComfyUiWorkflowTemplate.Prepare(
             workflow,
-            "ป่าชายเลนยามเช้า",
+            "mangrove forest at sunrise",
             1080,
             1920,
             durationSeconds: 4,
@@ -39,9 +27,9 @@ public sealed class LocalMediaGenerationProviderTests
             seed: 12345,
             outputPrefix: "AutoCut-test");
 
-        Assert.Equal("ป่าชายเลนยามเช้า", result["1"]!["inputs"]!["text"]!.GetValue<string>());
-        Assert.Equal(1080, result["2"]!["inputs"]!["width"]!.GetValue<int>());
-        Assert.Equal(1920, result["2"]!["inputs"]!["height"]!.GetValue<int>());
+        Assert.Equal("mangrove forest at sunrise", result["1"]!["inputs"]!["text"]!.GetValue<string>());
+        Assert.Equal(1080L, result["2"]!["inputs"]!["width"]!.GetValue<long>());
+        Assert.Equal(1920L, result["2"]!["inputs"]!["height"]!.GetValue<long>());
         Assert.Equal(12345L, result["3"]!["inputs"]!["seed"]!.GetValue<long>());
         Assert.Equal("AutoCut-test", result["4"]!["inputs"]!["filename_prefix"]!.GetValue<string>());
     }
