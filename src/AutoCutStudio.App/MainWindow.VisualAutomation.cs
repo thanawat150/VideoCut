@@ -223,27 +223,25 @@ public partial class MainWindow
             }
 
             _activeMedia = imported[^1];
-            _segments =
-            [
-                new TimelineSegment
-                {
-                    StartSeconds = 0,
-                    EndSeconds = _activeMedia.Metadata.DurationSeconds
-                }
-            ];
+            _segments.Clear();
+            _segments.Add(new TimelineSegment
+            {
+                StartSeconds = 0,
+                EndSeconds = _activeMedia.Metadata.DurationSeconds
+            });
             _project = _project with
             {
                 SourceMedia = sourceMedia,
                 Timeline = new TimelineDocument
                 {
-                    MediaAssetId = _activeMedia.Id,
+                    SourceMediaId = _activeMedia.Id,
                     Segments = CloneSegments(_segments)
                 }
             };
             await _projectRepository.SaveAsync(_project);
             await SaveRecentProjectPathAsync();
-            LoadProjectIntoUi();
-            LoadActiveMediaIntoPlayer();
+            ConfigureActiveMedia(_activeMedia);
+            UpdateProjectUi();
             StatusBarText.Text = $"Import สำเร็จ {imported.Count} คลิป — พร้อมใช้ใน Automation Studio";
 
             if (failed.Count > 0)
