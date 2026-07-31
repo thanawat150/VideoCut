@@ -30,6 +30,7 @@ public sealed record JobDocument
     public bool ExpectedInputHasAudio { get; init; }
     public double ExpectedDurationSeconds { get; init; }
     public RenderRecipe? RenderRecipe { get; init; }
+    public MultiClipRenderRecipe? MultiClipRecipe { get; init; }
     public PrivacyBlurRecipe? PrivacyBlurRecipe { get; init; }
     public TemplateVideoJobRecipe? TemplateVideoRecipe { get; init; }
     public MulticamRenderRecipe? MulticamRecipe { get; init; }
