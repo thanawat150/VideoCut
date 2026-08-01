@@ -19,7 +19,7 @@ public static class Program
         if (args.Length == 2 && args[0] == "--worker")
             return Worker.RunAsync(args[1]).GetAwaiter().GetResult();
         if (args.Length == 1 && args[0] == "--doctor")
-            return Worker.Doctor();
+            return SystemDoctorCommand.Run();
 
         var application = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
         return application.Run(new MainWindow());
@@ -113,4 +113,3 @@ public static class JsonConfig
         WriteIndented = true
     };
 }
-

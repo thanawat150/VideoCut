@@ -30,6 +30,7 @@ public sealed partial class MainWindow
         toolbar.Children.Add(CreateButton("เปิดโปรเจกต์", OpenProject));
         toolbar.Children.Add(CreateButton("บันทึก", SaveProject));
         toolbar.Children.Add(CreateButton("นำเข้าวิดีโอ", Import));
+        toolbar.Children.Add(CreateButton("ตรวจระบบ", ShowSystemDoctor));
         toolbar.Children.Add(CreateButton("Export MP4", Export));
         toolbar.Children.Add(CreateButton("ยกเลิกงาน", CancelJob));
         Grid.SetRow(toolbar, 0);

@@ -33,6 +33,29 @@
 
 ระบบที่ขาด Provider หรือ Model จะแจ้งสถานะจริงและไม่สร้างผลลัพธ์จำลอง
 
+## System Doctor
+
+กดปุ่ม **ตรวจระบบ** จาก Toolbar เพื่อเช็กความพร้อมก่อนเริ่มงาน โดยตรวจ:
+
+- FFmpeg และ FFprobe ด้วยการเปิดโปรแกรมจริง
+- Hardware encoder ที่มีใน FFmpeg build
+- Whisper CLI และไฟล์โมเดล
+- โมเดล OpenCV สำหรับใบหน้าและวัตถุ
+- ฟอนต์ภาษาไทย
+- พื้นที่ดิสก์และสิทธิ์เขียนในโฟลเดอร์ Output
+- Windows Voices
+- สถานะการตั้งค่า OpenAI โดยไม่อ่านหรือบันทึก API Key
+
+ผลตรวจแบ่งเป็น `Ready`, `Warning`, `Unavailable` และ `Failed` ฟังก์ชันเสริมที่ยังไม่พร้อมจะไม่ปิดกั้นงานตัดต่อพื้นฐาน ผู้ใช้สามารถ Export รายงาน JSON สำหรับวิเคราะห์ปัญหาได้
+
+โหมดคำสั่งสำหรับ CI/ตรวจ Portable:
+
+```powershell
+./AutoCutStudio.Rebuild.exe --doctor
+```
+
+รายงานจะถูกเขียนที่ `%TEMP%\autocut-rebuild-doctor.json` และคืน Exit Code ที่ไม่เป็นศูนย์เฉพาะเมื่อรายการที่จำเป็นล้มเหลว
+
 ## Build
 
 ```powershell
