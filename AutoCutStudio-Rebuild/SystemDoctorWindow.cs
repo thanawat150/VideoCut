@@ -1,11 +1,11 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Media;
-using Microsoft.Win32;
+using WpfBinding = System.Windows.Data.Binding;
 using WpfButton = System.Windows.Controls.Button;
 using WpfProgressBar = System.Windows.Controls.ProgressBar;
+using WpfSaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace AutoCutStudio.Rebuild;
 
@@ -106,12 +106,12 @@ public sealed class SystemDoctorWindow : Window
 
     private void ConfigureColumns()
     {
-        _grid.Columns.Add(new DataGridTextColumn { Header = "หมวด", Binding = new Binding(nameof(DoctorCheck.Category)), Width = 140 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "รายการ", Binding = new Binding(nameof(DoctorCheck.Name)), Width = 180 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "สถานะ", Binding = new Binding(nameof(DoctorCheck.State)), Width = 100 });
-        _grid.Columns.Add(new DataGridCheckBoxColumn { Header = "จำเป็น", Binding = new Binding(nameof(DoctorCheck.Required)), Width = 70 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "ผลตรวจ", Binding = new Binding(nameof(DoctorCheck.Summary)), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "รายละเอียด", Binding = new Binding(nameof(DoctorCheck.Details)), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "หมวด", Binding = new WpfBinding(nameof(DoctorCheck.Category)), Width = 140 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "รายการ", Binding = new WpfBinding(nameof(DoctorCheck.Name)), Width = 180 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "สถานะ", Binding = new WpfBinding(nameof(DoctorCheck.State)), Width = 100 });
+        _grid.Columns.Add(new DataGridCheckBoxColumn { Header = "จำเป็น", Binding = new WpfBinding(nameof(DoctorCheck.Required)), Width = 70 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "ผลตรวจ", Binding = new WpfBinding(nameof(DoctorCheck.Summary)), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = "รายละเอียด", Binding = new WpfBinding(nameof(DoctorCheck.Details)), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
     }
 
     private async Task RunDoctorAsync()
@@ -144,7 +144,7 @@ public sealed class SystemDoctorWindow : Window
     private async Task ExportAsync()
     {
         if (_report is null) return;
-        var dialog = new SaveFileDialog
+        var dialog = new WpfSaveFileDialog
         {
             Title = "บันทึกรายงาน System Doctor",
             Filter = "JSON|*.json",
