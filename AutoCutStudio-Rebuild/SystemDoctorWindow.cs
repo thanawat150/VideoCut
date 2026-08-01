@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Microsoft.Win32;
+using WpfButton = System.Windows.Controls.Button;
+using WpfProgressBar = System.Windows.Controls.ProgressBar;
 
 namespace AutoCutStudio.Rebuild;
 
@@ -25,15 +27,15 @@ public sealed class SystemDoctorWindow : Window
         FontSize = 15,
         FontWeight = FontWeights.SemiBold
     };
-    private readonly ProgressBar _progress = new()
+    private readonly WpfProgressBar _progress = new()
     {
         IsIndeterminate = true,
         Height = 5,
         Margin = new Thickness(12, 0, 12, 8),
         Visibility = Visibility.Collapsed
     };
-    private readonly Button _runButton = new() { Content = "ตรวจใหม่", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7) };
-    private readonly Button _exportButton = new() { Content = "Export รายงาน JSON", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7), IsEnabled = false };
+    private readonly WpfButton _runButton = new() { Content = "ตรวจใหม่", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7) };
+    private readonly WpfButton _exportButton = new() { Content = "Export รายงาน JSON", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7), IsEnabled = false };
     private DoctorReport? _report;
 
     public SystemDoctorWindow(string? projectRoot)
@@ -89,7 +91,7 @@ public sealed class SystemDoctorWindow : Window
         root.Children.Add(_grid);
 
         var buttons = new DockPanel { Margin = new Thickness(12, 0, 12, 12) };
-        var close = new Button { Content = "ปิด", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7) };
+        var close = new WpfButton { Content = "ปิด", Margin = new Thickness(4), Padding = new Thickness(14, 7, 14, 7) };
         close.Click += (_, _) => Close();
         DockPanel.SetDock(close, Dock.Right);
         DockPanel.SetDock(_exportButton, Dock.Right);
