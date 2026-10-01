@@ -22,8 +22,8 @@ description: >
 - SFX ใช้เฉพาะจุดสำคัญ
 - ทุก Automation ต้องแก้ไขด้วยมือได้
 - Non-destructive editing
-- ไม่บังคับให้คลิปต่ำกว่า 60 วินาที
-- ความยาวเป้าหมายประมาณ 68–80 วินาที และยืด/หดตามจังหวะจริงได้
+- ไม่ใช้ Subtitle ภาษาไทยใน EP.1
+- ความยาวเป้าหมายใหม่ 120–180 วินาที โดยเป้าหมายกลางประมาณ 140 วินาที
 
 ## 1. Project Structure
 
@@ -273,7 +273,7 @@ Reframe เป็น 9:16 ตามลำดับ:
 ## 9. Track Structure
 
 ```text
-V4  Subtitle
+V4  UNUSED — Subtitle Disabled
 V3  Text / Graphics
 V2  Map / Overlay
 V1  Main Video
@@ -835,15 +835,20 @@ FIELD DATA
 
 ## 15. Subtitle
 
-ใช้เฉพาะช่วง VO
+EP.1 เวอร์ชันใหม่นี้ **ปิด Subtitle ทั้งหมด**
+
+กฎ:
 
 ```text
-ไม่เกิน 2 บรรทัด
-Bottom Center
-ยกขึ้นจากขอบล่าง 15–20%
+ห้ามสร้าง SRT
+ห้ามสร้าง ASS
+ห้าม Burn-in Subtitle
+ห้ามใช้ Whisper เพื่อสร้าง Caption สำหรับ EP.1
 ```
 
-ต้องตรงเสียงพูดจริง
+ให้ใช้เฉพาะ Text On Screen แบบ Keyword บน V3 เท่านั้น
+
+เหตุผล: คุณภาพภาษาไทยจากระบบ Subtitle ยังไม่เป็นที่พอใจ และผู้ใช้สั่งให้เอา Subtitle ออกจาก EP.1
 
 ## 16. Transitions
 
@@ -873,29 +878,30 @@ Natural Field Documentary
 
 ## 17. Automation Workflow
 
-เมื่อ Agent ได้รับคำสั่งให้ทำ EP.1:
+เมื่อ Agent ได้รับคำสั่งให้ทำ EP.1 เวอร์ชันใหม่:
 
 1. Locate EP1
 2. Locate `05_EDIT_ASSETS`
-3. Scan Required Assets
-4. Read Master Edit Guide
-5. Validate Asset Names
-6. Probe Duration / Resolution / FPS / Audio
-7. Build Video Timeline
-8. Build Original Audio
-9. Add VO
-10. Add Music
-11. Add SFX
-12. Add Text
-13. Add Subtitle
-14. Reframe 9:16
-15. Generate Rough Cut
-16. Generate Preview
-17. Stop for Human Review
-18. Apply Human Changes
-19. Export Final
+3. กลับไป Raw Footage Day 1 / Day 2 เพื่อคัดคลิปใหม่ ไม่จำกัดแค่ Select 10 คลิปเดิม
+4. Read `Long Cut Plan` จาก Master Edit Guide
+5. Preview Candidate Footage
+6. เลือก Source In/Out ร่วมกับผู้ใช้
+7. Validate Asset Names
+8. Probe Duration / Resolution / FPS / Audio
+9. Build Long Rough Cut เป้าหมาย 120–180 วินาที
+10. Build Original Audio
+11. Add VO
+12. Add Music
+13. Add SFX
+14. Add Text On Screen
+15. ห้าม Add Subtitle
+16. Reframe 9:16
+17. Generate Preview
+18. Stop for Human Review
+19. Apply Human Changes
+20. Export Final
 
-ห้าม Auto Export Final ทันทีหลัง Build Rough Cut หากผู้ใช้ยังต้องการแก้ Timeline
+ห้าม Auto Export Final ทันทีหลัง Build Rough Cut
 
 ## 18. Human Override
 
@@ -914,7 +920,6 @@ Position
 Scale
 Volume
 Text
-Subtitle
 Music
 SFX
 Transition
@@ -1029,7 +1034,7 @@ EP.1 ผ่านเมื่อ:
 - ใส่ SFX ทุก Cut
 - ตัด Breathing Shot ออกอัตโนมัติ
 - เปลี่ยนคำ VO เอง
-- บังคับคลิปต่ำกว่า 60 วินาที
+- บังคับคลิปสั้นกว่า 2 นาทีโดยไม่มีเหตุผล
 - ทำคลิปให้ดูเหมือน Corporate Presentation
 - ใช้ Effect มากกว่าภาพจริง
 
@@ -1079,3 +1084,33 @@ Export
 Prompt สร้าง Auto Video Editor
 การเขียน Application Code
 ```
+
+
+## 25. Long Cut Reset — Current Working Mode
+
+EP.1 อยู่ในสถานะกลับไปคัด Footage ใหม่
+
+ใช้แท็บ `Long Cut Plan` ใน `EP01 Master Edit Guide` เป็นพื้นที่ทำงานปัจจุบัน
+
+หลัก:
+
+```text
+Target Runtime: 120–180 seconds
+Preferred Runtime: ~140 seconds
+Subtitle: OFF
+Text On Screen: ON
+Original Audio: HIGH PRIORITY
+Old 1:08 timeline: reference only, not final
+```
+
+Candidate Raw Footage ที่ควร Review เพิ่ม:
+
+```text
+IMG_1382.MOV
+IMG_1383.MOV
+IMG_1410.MOV
+IMG_1411.MOV
+IMG_1412.MOV
+```
+
+ห้าม Lock Source In/Out ของ Candidate เหล่านี้จนกว่าจะ Preview และผู้ใช้เห็นชอบ
