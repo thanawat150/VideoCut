@@ -1,0 +1,65 @@
+name: EP3 Trim Selects
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ep3_trim_selects.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  trim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install downloader
+        run: python -m pip install --quiet gdown
+
+      - name: Download EP3 raw videos from Google Drive
+        run: |
+          mkdir -p raw selects
+          gdown "https://drive.google.com/uc?id=1ggQ0U0En9IliN2l4jVwx-V5Y_tkmsbHf" -O raw/IMG_1382.MOV
+          gdown "https://drive.google.com/uc?id=1A774AtX7LH_3Fqk6iH2ZkeDSrI-RNWsL" -O raw/IMG_1383.MOV
+          gdown "https://drive.google.com/uc?id=1LpwS0xK5EHqGyE5DFteD6EMVfSlO_VgV" -O raw/IMG_1411.MOV
+          gdown "https://drive.google.com/uc?id=1usfM3EqWZrAl2J2Y8Ui2brnbxQjNH6Hz" -O raw/IMG_1412.MOV
+
+      - name: Verify ffmpeg
+        run: ffmpeg -version | head -n 1
+
+      - name: Cut SELECTS_READY
+        shell: bash
+        run: |
+          set -euo pipefail
+          cutclip () {
+            src="$1"; start="$2"; dur="$3"; out="$4"
+            ffmpeg -y -hide_banner -loglevel error -ss "$start" -i "$src" -t "$dur"               -c:v libx264 -preset veryfast -crf 18 -c:a aac -b:a 160k               -movflags +faststart "$out"
+          }
+
+          cutclip raw/IMG_1383.MOV 00:00.000 12.0 selects/01_EP3_ESTABLISH_IMG1383_0-12.mp4
+          cutclip raw/IMG_1382.MOV 00:13.300 16.2 selects/02_EP3_APPROACH_IMG1382_13.3-29.5.mp4
+          cutclip raw/IMG_1382.MOV 00:29.500 8.0 selects/03_EP3_POINT_IMG1382_29.5-37.5.mp4
+          cutclip raw/IMG_1383.MOV 00:24.000 5.0 selects/04_EP3_POINT_DETAIL_IMG1383_24-29.mp4
+          cutclip raw/IMG_1383.MOV 00:42.000 19.0 selects/05_EP3_CONSISTENCY_IMG1383_42-61.mp4
+          cutclip raw/IMG_1383.MOV 01:01.000 18.0 selects/06_EP3_PROOF_IMG1383_61-79.mp4
+          cutclip raw/IMG_1383.MOV 01:19.000 10.0 selects/07_EP3_READ_IMG1383_79-89.mp4
+          cutclip raw/IMG_1382.MOV 01:08.000 16.0 selects/08_EP3_COMPARE_IMG1382_68-84.mp4
+          cutclip raw/IMG_1382.MOV 00:48.000 9.0 selects/09_EP3_DETAIL_IMG1382_48-57.mp4
+          cutclip raw/IMG_1411.MOV 00:29.000 8.0 selects/10_EP3_BREATH_IMG1411_29-37.mp4
+          cutclip raw/IMG_1412.MOV 00:30.000 5.0 selects/11_EP3_BREATH_IMG1412_30-35.mp4
+          cutclip raw/IMG_1383.MOV 00:52.000 8.0 selects/12_EP3_HOOK_HERO_IMG1383_52-60.mp4
+
+          for f in selects/*.mp4; do
+            echo "$(basename "$f") $(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "$f")"
+          done | tee selects/SELECTS_MANIFEST.txt
+
+      - name: Upload SELECTS_READY artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EP3_SELECTS_READY
+          path: selects/
+          compression-level: 0
+          retention-days: 7
