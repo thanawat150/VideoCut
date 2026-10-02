@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           cutclip () {
             src="$1"; start="$2"; dur="$3"; out="$4"
-            ffmpeg -y -hide_banner -loglevel error -ss "$start" -i "$src" -t "$dur"               -c:v libx264 -preset veryfast -crf 18 -c:a aac -b:a 160k               -movflags +faststart "$out"
+            ffmpeg -y -hide_banner -loglevel error -ss "$start" -i "$src" -t "$dur"               -c:v libx264 -preset veryfast -b:v 4200k -maxrate 5000k -bufsize 8400k               -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "$out"
           }
 
           cutclip raw/IMG_1383.MOV 00:00.000 12.0 selects/01_EP3_ESTABLISH_IMG1383_0-12.mp4
@@ -53,13 +53,13 @@ jobs:
           cutclip raw/IMG_1383.MOV 00:52.000 8.0 selects/12_EP3_HOOK_HERO_IMG1383_52-60.mp4
 
           for f in selects/*.mp4; do
-            echo "$(basename "$f") $(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "$f")"
+            echo "$(basename "$f") $(ffprobe -v error -show_entries format=duration,size -of csv=p=0 "$f")"
           done | tee selects/SELECTS_MANIFEST.txt
 
       - name: Upload SELECTS_READY artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EP3_SELECTS_READY
+          name: EP3_SELECTS_READY_DRIVE
           path: selects/
           compression-level: 0
           retention-days: 7
