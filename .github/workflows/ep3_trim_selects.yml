@@ -16,8 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install downloader
-        run: python -m pip install --quiet gdown
+      - name: Install tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          python -m pip install --quiet gdown
 
       - name: Download EP3 raw videos from Google Drive
         run: |
@@ -26,9 +29,6 @@ jobs:
           gdown "https://drive.google.com/uc?id=1A774AtX7LH_3Fqk6iH2ZkeDSrI-RNWsL" -O raw/IMG_1383.MOV
           gdown "https://drive.google.com/uc?id=1LpwS0xK5EHqGyE5DFteD6EMVfSlO_VgV" -O raw/IMG_1411.MOV
           gdown "https://drive.google.com/uc?id=1usfM3EqWZrAl2J2Y8Ui2brnbxQjNH6Hz" -O raw/IMG_1412.MOV
-
-      - name: Verify ffmpeg
-        run: ffmpeg -version | head -n 1
 
       - name: Cut SELECTS_READY
         shell: bash
