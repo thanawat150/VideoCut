@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101522">
+  <title>VideoCut · TikTok Affiliate Queue</title>
+  <style>
+    :root{font-family:Inter,"Noto Sans Thai",system-ui,sans-serif;color:#f3f5fa;background:#101522;font-synthesis:none}*{box-sizing:border-box}body{margin:0}header{padding:26px max(20px,calc((100vw - 1100px)/2));background:#171e2d;border-bottom:1px solid #2b3548;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}h1{font-size:22px;margin:0}header p{margin:5px 0 0;color:#aab4c7;font-size:13px}.actions{display:flex;gap:8px;flex-wrap:wrap}main{max-width:1100px;margin:24px auto;padding:0 18px}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:18px}.card{background:#171e2d;border:1px solid #2b3548;border-radius:14px;padding:18px;margin-bottom:18px}h2{font-size:16px;margin:0 0 14px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.stat{background:#202a3b;border-radius:10px;padding:12px}.stat b{font-size:22px;display:block}.stat span,.muted{font-size:12px;color:#aab4c7}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:block;font-size:12px;color:#bdc6d6;margin-bottom:5px}input,select,textarea{width:100%;background:#101522;color:#f3f5fa;border:1px solid #3a465b;border-radius:8px;padding:10px;font:inherit}textarea{min-height:98px;resize:vertical}.wide{grid-column:1/-1}.check{display:flex;align-items:center;gap:9px;margin:12px 0;color:#e1e6ef}.check input{width:auto}.btn{border:0;border-radius:8px;padding:10px 14px;background:#476cf5;color:white;font-weight:700;cursor:pointer}.btn.secondary{background:#2b3548;color:#e8edf5}.btn.ghost{background:transparent;border:1px solid #42506a;color:#e8edf5}.btn.danger{background:#793b47}.btn:disabled{opacity:.45;cursor:not-allowed}.notice{border-left:3px solid #f6bd4b;padding:9px 12px;background:#302b20;color:#f4d68f;font-size:12px;border-radius:5px;margin:10px 0}.notice.ok{border-color:#35c88a;background:#1b302b;color:#9ce3c5}.row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-top:1px solid #2b3548;padding:13px 0}.row:first-of-type{border-top:0}.row strong{display:block;font-size:14px}.row small{display:block;color:#aab4c7;margin-top:5px}.badge{display:inline-block;border-radius:99px;padding:3px 8px;background:#293650;color:#b9cafa;font-size:11px;white-space:nowrap}.badge.ok{background:#1b3b30;color:#9ce3c5}.badge.warn{background:#42351f;color:#f4d68f}.row-actions{display:flex;gap:6px}.row-actions button{padding:6px 9px;font-size:11px}.empty{padding:22px;text-align:center;color:#9ba7ba}.fine{color:#8f9bb0;font-size:11px;line-height:1.6}.sub{color:#b6c1d3;font-size:13px;line-height:1.6}footer{max-width:1100px;margin:0 auto;padding:0 18px 28px}.pill{border:1px solid #364258;border-radius:999px;padding:5px 10px;color:#c5cede;font-size:11px}@media(max-width:760px){.grid{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.wide{grid-column:auto}.stats{grid-template-columns:repeat(3,1fr)}header{padding:20px}}
+  </style>
+</head>
+<body>
+<header>
+  <div><h1>VideoCut · TikTok Affiliate Queue</h1><p>แพตเทิร์นลงคลิปและคิวสินค้า · บันทึกไว้ในเบราว์เซอร์เครื่องนี้</p></div>
+  <div class="actions"><button class="btn secondary" id="exportBtn">ส่งออกข้อมูล</button><label class="btn ghost" for="importFile" style="margin:0;cursor:pointer">นำเข้าข้อมูล</label><input id="importFile" type="file" accept="application/json" hidden><button class="btn" id="openTikTok">เปิด TikTok Studio</button></div>
+</header>
+<main>
+  <div class="stats"><div class="stat"><b id="countToday">0</b><span>คลิปในคิววันนี้</span></div><div class="stat"><b id="countPending">0</b><span>รอยืนยันสินค้า/แพ็ก</span></div><div class="stat"><b id="countScheduled">0</b><span>ตั้งเวลาแล้ว</span></div></div>
+  <div class="grid">
+    <section>
+      <div class="card"><h2 id="formTitle">เพิ่มคลิปเข้าคิว</h2>
+        <div class="formgrid">
+          <div class="wide"><label for="video">ไฟล์คลิป (เลือกจากเครื่อง)</label><input id="video" type="file" accept="video/*"></div>
+          <div><label for="product">สินค้า</label><select id="product"><option value="sunscreen">กันแดดศิริราช สีเนื้อ</option><option value="shampoo">แชมพูศิริราช</option><option value="unknown">สินค้าอื่น / ยังไม่ยืนยัน</option></select></div>
+          <div><label for="pack">แพ็ก / ตัวเลือก</label><select id="pack"><option value="tinted">สีเนื้อ</option></select></div>
+          <div><label for="date">วันที่</label><input id="date" type="date"></div>
+          <div><label for="time">เวลา (ไทย)</label><select id="time"><option>09:00</option><option>12:00</option><option>15:00</option><option>18:00</option><option>21:00</option></select></div>
+          <div class="wide"><label for="caption">แคปชั่น</label><textarea id="caption" placeholder="เขียนแคปชั่นที่ตรงกับสิ่งที่พูดและเห็นในคลิป"></textarea></div>
+        </div>
+        <label class="check"><input id="brandContent" type="checkbox" checked> เปิด Branded content</label>
+        <label class="check"><input id="existingPost" type="checkbox"> รายการนี้เป็นโพสต์เดิมใน TikTok (ล็อกไว้ ไม่เลื่อน)</label>
+        <div id="productNotice" class="notice"></div>
+        <div class="actions"><button class="btn secondary" id="captionBtn">ใส่แม่แบบแคปชั่น</button><button class="btn" id="saveBtn">บันทึกเข้าคิว</button><button class="btn ghost" id="cancelEdit" hidden>ยกเลิกแก้ไข</button></div>
+        <p class="fine">ไฟล์วิดีโอไม่ถูกอัปโหลดขึ้น GitHub หรือเก็บในระบบนี้ ระบบเก็บชื่อไฟล์และข้อมูลคิวไว้ในเบราว์เซอร์เท่านั้น</p>
+      </div>
+      <div class="card"><h2>กติกาคิว</h2><p class="sub">วันละ 5 คลิป เวลา 09:00 · 12:00 · 15:00 · 18:00 · 21:00 (เวลาไทย) ถ้าชนกับโพสต์เดิม ให้เลื่อนเฉพาะคลิปใหม่ไปวันถัดไปในเวลาเดิมที่ว่าง ไม่เลื่อนโพสต์เดิม และไม่เลื่อนเพราะมีโพสต์เวลาอื่นในวันเดียวกัน</p><button class="btn secondary" id="resolveBtn">จัดเวลาให้คลิปใหม่ที่ชน</button><p class="fine">ระบบจัดคิวและเตรียมข้อมูล ไม่ล็อกอินหรือกดโพสต์แทนคุณ การตั้งโพสต์จริงให้ตรวจรายละเอียดใน TikTok Studio ก่อนยืนยัน</p></div>
+    </section>
+    <section>
+      <div class="card"><h2>คิวคลิป</h2><div class="formgrid" style="margin-bottom:12px"><div><label for="filterDate">กรองวันที่</label><input id="filterDate" type="date"></div><div style="display:flex;align-items:end"><button class="btn ghost" id="clearFilter">ดูทั้งหมด</button></div></div><div id="queue"></div></div>
+      <div class="card"><h2>ติดตามผล</h2><p class="sub">ใส่ยอดหลังโพสต์ เพื่อเทียบผลคลิปใน pattern เดียวกัน</p><div id="metrics"></div></div>
+    </section>
+  </div>
+</main>
+<footer><p class="fine">ข้อมูลอยู่ใน localStorage ของเบราว์เซอร์นี้ แนะนำกด “ส่งออกข้อมูล” สำรองเป็นระยะ หากล้างข้อมูลเบราว์เซอร์ คิวจะหาย</p></footer>
+<script>
+(()=>{
+  const KEY='videocut-tiktok-affiliate-queue-v1', slots=['09:00','12:00','15:00','18:00','21:00'];
+  const products={
+    sunscreen:{name:'กันแดดศิริราช สีเนื้อ',id:'1730044670601431144',listing:'ครีมป้องกันแสงแดด สีเนื้อ ศิริราช เพียวฟิสิคอล ซันสกรีน SPF 50+ PA++++',pack:'tinted',tags:'#กันแดดศิริราช #กันแดดสีเนื้อ #รีวิวกันแดด',note:'ยืนยันสินค้าและตัวเลือกสีเนื้อแล้ว ตรวจชื่อ/ราคาใน TikTok Shop ก่อนโพสต์'},
+    shampoo:{name:'แชมพูศิริราช',id:'1731398509680298088',listing:'Siriraj Mild Shampoo (pump head)',pack:'unknown',tags:'#แชมพูศิริราช #SirirajMildShampoo #รีวิวแชมพู',note:'ยังต้องยืนยันลิงก์แพ็ก 1 ขวดหรือ 2 ขวดก่อนปักตะกร้า'},
+    unknown:{name:'ยังไม่ยืนยันสินค้า',id:'',listing:'',pack:'unknown',tags:'#รีวิวสินค้า',note:'ต้องระบุสินค้าและตรวจลิงก์ตะกร้าก่อนโพสต์'}
+  };
+  const $=id=>document.getElementById(id), today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  let data=JSON.parse(localStorage.getItem(KEY)||'null')||{items:[
+    {id:crypto.randomUUID(),file:'IMG_2093_JumpCut_1080p.mp4',product:'sunscreen',pack:'tinted',date:'2026-10-18',time:'09:00',caption:'กำลังหากันแดดสีเนื้ออยู่ไหม? ☀️ ลองดูศิริราช Tinted Physical Sunscreen SPF50+ PA++++ ในคลิปนี้ครับ ดูรายละเอียดและราคาปัจจุบันได้ที่ตะกร้า 🛒 #กันแดดศิริราช #กันแดดสีเนื้อ #รีวิวกันแดด',brand:true,status:'scheduled',old:true,metrics:{views:0,clicks:0,orders:0,commission:0}},
+    {id:crypto.randomUUID(),file:'IMG_2139_JumpCut_1080p.mp4',product:'shampoo',pack:'unknown',date:'',time:'',caption:'มองหาแชมพูสำหรับสระผมทุกวันอยู่ไหม? 🧴 คลิปนี้พาดูศิริราช Mild Shampoo สูตรปราศจากซิลิโคน พร้อมรายละเอียดจากขวดจริง เลือกแพ็กและเช็กราคาปัจจุบันในตะกร้าได้ครับ 🛒 #แชมพูศิริราช #SirirajMildShampoo #รีวิวแชมพู',brand:true,status:'draft',old:false,metrics:{views:0,clicks:0,orders:0,commission:0}}
+  ]}; let editId=null;
+  const persist=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
+  function productSync(){const p=products[$('product').value];$('productNotice').textContent=p.note;$('productNotice').className='notice'+(p.id&&p.pack!=='unknown'?' ok':'');const opts=$('pack');opts.innerHTML='';( $('product').value==='shampoo' ? [['unknown','เลือกแพ็กที่ยืนยันแล้ว'],['1bottle','1 ขวด (ต้องใส่ลิงก์สินค้าตรงแพ็ก)'],['2bottles','2 ขวด (ต้องใส่ลิงก์สินค้าตรงแพ็ก)']]:$('product').value==='sunscreen'?[['tinted','สีเนื้อ']]:[['unknown','รอยืนยัน']]).forEach(([v,t])=>opts.add(new Option(t,v)));}
+  $('product').addEventListener('change',productSync);productSync();$('date').value=today();
+  $('captionBtn').onclick=()=>{const p=products[$('product').value];const labels={sunscreen:'กำลังหากันแดดสีเนื้ออยู่ไหม? ☀️ ลองดูศิริราช Tinted Physical Sunscreen SPF50+ PA++++ ในคลิปนี้ครับ ดูรายละเอียดและราคาปัจจุบันได้ที่ตะกร้า 🛒',shampoo:'มองหาแชมพูสำหรับสระผมทุกวันอยู่ไหม? 🧴 คลิปนี้พาดูศิริราช Mild Shampoo จากขวดจริง เลือกแพ็กและเช็กราคาปัจจุบันในตะกร้าได้ครับ 🛒',unknown:'ดูรายละเอียดสินค้าในคลิปนี้ได้ที่ตะกร้าครับ 🛒'};$('caption').value=labels[$('product').value]+' '+p.tags};
+  function scheduleNew(items){const used=new Set(items.filter(x=>x.old&&x.status!=='draft'&&x.date&&x.time).map(x=>x.date+'|'+x.time));for(const x of items.filter(x=>!x.old&&x.status!=='draft'&&x.date&&x.time).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))){let d=x.date, tries=0;while(used.has(d+'|'+x.time)&&tries++<366){const dt=new Date(d+'T12:00:00');dt.setDate(dt.getDate()+1);d=dt.toISOString().slice(0,10)}x.date=d;used.add(d+'|'+x.time)}}
+  $('saveBtn').onclick=()=>{let file=$('video').files[0]?.name||'';const isOld=$('existingPost').checked;if(editId){const x=data.items.find(i=>i.id===editId);if(file)x.file=file;Object.assign(x,{product:$('product').value,pack:$('pack').value,date:$('date').value,time:$('time').value,caption:$('caption').value,brand:$('brandContent').checked,old:isOld,status:isOld?'scheduled':'queued'});editId=null}else{if(!file){alert('เลือกไฟล์คลิปก่อนครับ');return}data.items.push({id:crypto.randomUUID(),file,product:$('product').value,pack:$('pack').value,date:$('date').value,time:$('time').value,caption:$('caption').value,brand:$('brandContent').checked,status:isOld?'scheduled':'queued',old:isOld,metrics:{views:0,clicks:0,orders:0,commission:0}})}$('video').value='';$('existingPost').checked=false;$('cancelEdit').hidden=true;$('formTitle').textContent='เพิ่มคลิปเข้าคิว';persist()};
+  $('cancelEdit').onclick=()=>{editId=null;$('cancelEdit').hidden=true;$('formTitle').textContent='เพิ่มคลิปเข้าคิว'};
+  $('resolveBtn').onclick=()=>{scheduleNew(data.items);persist()};
+  $('openTikTok').onclick=()=>window.open('https://www.tiktok.com/tiktokstudio/upload','_blank','noopener');
+  $('filterDate').onchange=render;$('clearFilter').onclick=()=>{$('filterDate').value='';render()};
+  $('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tiktok-affiliate-queue.json';a.click();URL.revokeObjectURL(a.href)};
+  $('importFile').onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(!Array.isArray(x.items))throw Error();data=x;persist()}catch{alert('ไฟล์สำรองไม่ถูกต้อง')}e.target.value=''};
+  function edit(id){const x=data.items.find(i=>i.id===id);editId=id;$('formTitle').textContent='แก้ไขคลิป';$('product').value=x.product;productSync();$('pack').value=x.pack;$('date').value=x.date||today();$('time').value=x.time||slots[0];$('caption').value=x.caption;$('brandContent').checked=x.brand;$('existingPost').checked=!!x.old;$('cancelEdit').hidden=false;window.scrollTo({top:0,behavior:'smooth'})}
+  function render(){const day=$('filterDate').value, items=data.items.filter(x=>!day||x.date===day).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('queue').innerHTML=items.length?items.map(x=>{const p=products[x.product]||products.unknown, needs=!p.id||x.pack==='unknown';return `<div class="row"><div><strong>${esc(x.file||'คลิปยังไม่มีชื่อไฟล์')}</strong><small>${x.date?esc(x.date)+' · '+esc(x.time):'ยังไม่ตั้งเวลา'} · ${esc(p.name)}${x.pack==='1bottle'?' · 1 ขวด':x.pack==='2bottles'?' · 2 ขวด':''}</small><small>${esc((x.caption||'').slice(0,140))}</small><div style="margin-top:7px"><span class="badge ${needs?'warn':'ok'}">${needs?'รอยืนยันสินค้า/แพ็ก':x.status==='scheduled'?'ตั้งเวลาแล้ว':x.status==='published'?'โพสต์แล้ว':x.status==='draft'?'ร่าง':'รอจัดการใน TikTok'}</span> ${x.brand?'<span class="badge ok">Branded content</span>':'<span class="badge warn">ยังไม่เปิด disclosure</span>'}</div></div><div class="row-actions"><button class="btn secondary" data-edit="${x.id}">แก้</button><button class="btn ghost" data-status="${x.id}">${x.status==='scheduled'?'โพสต์แล้ว':'ตั้งเวลาแล้ว'}</button><button class="btn danger" data-del="${x.id}">ลบ</button></div></div>`}).join(''):'<div class="empty">ยังไม่มีคลิปในวันที่เลือก</div>';
+    $('queue').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));$('queue').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{data.items=data.items.filter(x=>x.id!==b.dataset.del);persist()});$('queue').querySelectorAll('[data-status]').forEach(b=>b.onclick=()=>{const x=data.items.find(i=>i.id===b.dataset.status);x.status=x.status==='scheduled'?'published':'scheduled';persist()});
+    const t=today(),todayItems=data.items.filter(x=>x.date===t);$('countToday').textContent=todayItems.length;$('countPending').textContent=data.items.filter(x=>!products[x.product]?.id||x.pack==='unknown').length;$('countScheduled').textContent=data.items.filter(x=>x.status==='scheduled').length;
+    const active=data.items.filter(x=>x.status==='published'||x.status==='scheduled');$('metrics').innerHTML=active.length?active.map(x=>`<div class="row"><div><strong>${esc(x.file)}</strong><small>วิว <input data-m="views" data-id="${x.id}" type="number" min="0" value="${x.metrics?.views||0}" style="width:85px;padding:5px"> คลิกตะกร้า <input data-m="clicks" data-id="${x.id}" type="number" min="0" value="${x.metrics?.clicks||0}" style="width:85px;padding:5px"> ออเดอร์ <input data-m="orders" data-id="${x.id}" type="number" min="0" value="${x.metrics?.orders||0}" style="width:75px;padding:5px"> คอมฯ ฿<input data-m="commission" data-id="${x.id}" type="number" min="0" value="${x.metrics?.commission||0}" style="width:85px;padding:5px"></small></div></div>`).join(''):'<div class="empty">ตั้งสถานะเป็น “โพสต์แล้ว” เพื่อบันทึกผลคลิป</div>';
+    $('metrics').querySelectorAll('[data-m]').forEach(el=>el.onchange=()=>{const x=data.items.find(i=>i.id===el.dataset.id);x.metrics=x.metrics||{};x.metrics[el.dataset.m]=Number(el.value)||0;localStorage.setItem(KEY,JSON.stringify(data))});
+  }
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}render();
+})();
+</script>
+</body>
+</html>
