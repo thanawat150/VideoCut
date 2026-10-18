@@ -1,0 +1,157 @@
+name: AutoCut Studio Drive Parts
+
+on:
+  push:
+    branches:
+      - feature/drive-package-parts
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  split-package:
+    runs-on: windows-latest
+    steps:
+      - name: Download validated Local AI portable artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Path source -Force | Out-Null
+          gh run download 30617144463 `
+            --repo thanawat150/VideoCut `
+            --name AutoCutStudio-win-x64-final `
+            --dir source
+          $portable = Get-ChildItem source -Filter "AutoCutStudio-win-x64.zip" -File -Recurse | Select-Object -First 1
+          if ($null -eq $portable) { throw "AutoCutStudio-win-x64.zip was not found in the validated artifact." }
+          Copy-Item $portable.FullName "AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip" -Force
+
+      - name: Split portable ZIP and create join tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $source = Join-Path $PWD "AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip"
+          $outputDirectory = Join-Path $PWD "drive-parts"
+          New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+          $partSize = 80MB
+          $buffer = New-Object byte[] (1MB)
+          $input = [System.IO.File]::OpenRead($source)
+          try {
+            $partIndex = 0
+            while ($input.Position -lt $input.Length) {
+              $partName = "AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.{0:D2}.part" -f $partIndex
+              $partPath = Join-Path $outputDirectory $partName
+              $output = [System.IO.File]::Create($partPath)
+              try {
+                $written = 0L
+                while ($written -lt $partSize -and $input.Position -lt $input.Length) {
+                  $remaining = [Math]::Min($buffer.Length, $partSize - $written)
+                  $read = $input.Read($buffer, 0, [int]$remaining)
+                  if ($read -le 0) { break }
+                  $output.Write($buffer, 0, $read)
+                  $written += $read
+                }
+              }
+              finally {
+                $output.Dispose()
+              }
+              $partIndex++
+            }
+          }
+          finally {
+            $input.Dispose()
+          }
+          if ($partIndex -ne 5) { throw "Expected 5 parts but created $partIndex. Update the upload steps before publishing." }
+          (Get-FileHash $source -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content (Join-Path $outputDirectory "SHA256.txt") -Encoding utf8
+          Get-ChildItem $outputDirectory -Filter "*.part" -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          } | Set-Content (Join-Path $outputDirectory "SHA256-parts.txt") -Encoding utf8
+          @'
+          $ErrorActionPreference = "Stop"
+          $folder = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $output = Join-Path $folder "AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip"
+          $parts = Get-ChildItem $folder -Filter "AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.*.part" -File | Sort-Object Name
+          if ($parts.Count -eq 0) { throw "No .part files were found." }
+          $stream = [System.IO.File]::Create($output)
+          try {
+              foreach ($part in $parts) {
+                  Write-Host "Joining $($part.Name)"
+                  $input = [System.IO.File]::OpenRead($part.FullName)
+                  try { $input.CopyTo($stream) } finally { $input.Dispose() }
+              }
+          }
+          finally { $stream.Dispose() }
+          $expected = (Get-Content (Join-Path $folder "SHA256.txt") | Select-Object -First 1).Trim().ToLowerInvariant()
+          $actual = (Get-FileHash $output -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "SHA-256 mismatch. Expected $expected but got $actual" }
+          Write-Host "Package joined successfully: $output"
+          Write-Host "SHA-256 verified: $actual"
+          '@ | Set-Content (Join-Path $outputDirectory "Join-AutoCutStudio.ps1") -Encoding utf8
+          @'
+          AutoCut Studio Local AI - Download Instructions
+
+          1. Download all five part archives and the tools archive.
+          2. Extract every downloaded archive into the same folder.
+          3. Run this command in PowerShell from that folder:
+             powershell -ExecutionPolicy Bypass -File .\Join-AutoCutStudio.ps1
+          4. The script creates AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip and verifies SHA-256.
+          5. Extract the resulting ZIP and open AutoCutStudio.exe.
+
+          All five .part files are required. Do not rename them.
+          ComfyUI and Piper models are installed separately because their sizes and hardware requirements vary.
+          '@ | Set-Content (Join-Path $outputDirectory "README.txt") -Encoding utf8
+          Get-ChildItem $outputDirectory | Format-Table Name,Length
+
+      - name: Upload part 00
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-part-00
+          path: drive-parts/AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.00.part
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload part 01
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-part-01
+          path: drive-parts/AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.01.part
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload part 02
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-part-02
+          path: drive-parts/AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.02.part
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload part 03
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-part-03
+          path: drive-parts/AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.03.part
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload part 04
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-part-04
+          path: drive-parts/AutoCutStudio-Local-AI-ComfyUI-Piper-win-x64.zip.04.part
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload join tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCutStudio-LocalAI-join-tools
+          path: |
+            drive-parts/Join-AutoCutStudio.ps1
+            drive-parts/README.txt
+            drive-parts/SHA256.txt
+            drive-parts/SHA256-parts.txt
+          retention-days: 30
